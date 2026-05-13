@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand: #0f172a; /* Slate 900 for a more premium, professional feel */
+  --color-brand-accent: #3b82f6; /* Blue 500 for active states */
+  --color-surface: #f8fafc; /* Slate 50 */
+  --color-paper: #ffffff;
+  --color-border: #e2e8f0; /* Slate 200 */
+  --color-border-strong: #cbd5e1; /* Slate 300 */
+  
+  --color-text-main: #0f172a; /* Slate 900 */
+  --color-text-muted: #475569; /* Slate 600 */
+  --color-text-light: #94a3b8; /* Slate 400 */
+  
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-text-main antialiased selection:bg-brand-accent/20;
+    font-feature-settings: "cv02", "cv05", "cv11", "ss01";
+  }
+}
+
+@layer components {
+  .card-minimal {
+    @apply bg-paper border border-border p-6 rounded-3xl shadow-[0_1px_3px_0_rgba(0,0,0,0.02),0_1px_2px_-1px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.04),0_8px_10px_-6px_rgba(0,0,0,0.04)] transition-all duration-300;
+  }
+  
+  .btn-primary {
+    @apply bg-brand text-white px-6 py-2.5 rounded-2xl font-semibold hover:bg-slate-800 shadow-lg shadow-brand/10 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply bg-paper border border-border text-text-main px-6 py-2.5 rounded-2xl font-semibold hover:bg-surface hover:border-border-strong transition-all active:scale-95;
+  }
+  
+  .badge-status {
+    @apply text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-[0.05em] flex items-center gap-2 w-fit;
+  }
+
+  .grid-structure {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, var(--color-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
+    background-position: center center;
+  }
+}
