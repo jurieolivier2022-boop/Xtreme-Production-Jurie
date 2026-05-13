@@ -108,11 +108,6 @@ export function Sidebar() {
             <p className="text-[9px] text-text-muted font-bold mt-3 leading-relaxed">System performing at high efficiency levels.</p>
           </div>
         )}
-        
-        <button className="flex items-center gap-3 px-5 py-4 text-text-muted hover:text-red-500 w-full transition-all rounded-2xl hover:bg-red-50 group font-black text-[10px] uppercase tracking-widest">
-          <LogOut size={18} strokeWidth={2.5} className="shrink-0 group-hover:-translate-x-1 transition-transform" />
-          {!collapsed && <span>System Logout</span>}
-        </button>
       </div>
 
       <button 
