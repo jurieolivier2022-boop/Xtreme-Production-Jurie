@@ -1,11 +1,14 @@
-import React, { useState, useRef } from 'react';
-import { Search, Plus, ListFilter, Trash2, Edit2, Mail, Phone, Building2, Upload, Loader2, History, FileText, Briefcase, Clock, ExternalLink, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Plus, ListFilter, Trash2, Edit2, Mail, Phone, Building2, Upload, Loader2, History, FileText, Briefcase, Clock, ExternalLink, X, CheckCircle2 } from 'lucide-react';
 import Papa from 'papaparse';
 import { cn } from '@/src/lib/utils';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Client, Quote, Job } from '../types';
 import QuoteModal from '../components/QuoteModal';
+import { motion, AnimatePresence } from 'motion/react';
 import JobModal from '../components/JobModal';
+import { toast } from 'sonner';
 
 export default function Clients() {
   const { data: clients, loading } = useCollection<Client>('clients');
@@ -77,10 +80,10 @@ export default function Clients() {
               importedCount++;
             }
           }
-          alert(`Successfully imported ${importedCount} clients.`);
+          toast.success(`Successfully imported ${importedCount} clients.`);
         } catch (error) {
           console.error('Import error:', error);
-          alert('Failed to import clients. Please check your CSV format.');
+          toast.error('Failed to import clients. Please check your CSV format.');
         } finally {
           setIsImporting(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
@@ -88,7 +91,7 @@ export default function Clients() {
       },
       error: (error) => {
         console.error('CSV parse error:', error);
-        alert('Error parsing CSV file.');
+        toast.error('Error parsing CSV file.');
         setIsImporting(false);
       }
     });
@@ -463,21 +466,30 @@ function ClientModal({ client, onClose }: { client: Client | null, onClose: () =
     vatNumber: client?.vatNumber || ''
   });
 
+  const [showGuidedNextStep, setShowGuidedNextStep] = useState<string | null>(null);
+
+  const navigate = useNavigate();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Button Click: Save Client Details', { isEdit: !!client });
     setIsSaving(true);
     try {
       const data = { ...formData, createdAt: client?.createdAt || Date.now() };
+      let newClientId = client?.id;
       if (client) {
         await updateDocument('clients', client.id, data);
       } else {
-        await createDocument('clients', data as any);
+        const docId = await createDocument('clients', data as any);
+        if (docId) {
+          newClientId = docId;
+          setShowGuidedNextStep(newClientId);
+        }
       }
-      onClose();
+      if (!newClientId || client) onClose();
     } catch (error) {
       console.error('Error saving client:', error);
-      alert('Failed to save client details.');
+      toast.error('Failed to save client details.');
     } finally {
       setIsSaving(false);
     }
@@ -549,6 +561,43 @@ function ClientModal({ client, onClose }: { client: Client | null, onClose: () =
             </button>
           </div>
         </form>
+
+        <AnimatePresence>
+          {showGuidedNextStep && (
+            <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="absolute inset-0 bg-white/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-12 text-center"
+            >
+               <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-[2.5rem] flex items-center justify-center mb-6 border border-emerald-100">
+                  <CheckCircle2 size={32} />
+               </div>
+               <h3 className="text-2xl font-black text-text-main tracking-tighter uppercase italic">Client Logged</h3>
+               <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-3">The entity has been recorded. What is the next command?</p>
+               
+               <div className="grid grid-cols-1 gap-3 w-full mt-10">
+                  <button 
+                    onClick={() => {
+                       navigate(`/quotes?clientId=${showGuidedNextStep}`);
+                    }}
+                    className="w-full flex items-center justify-center gap-4 py-5 bg-brand text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:-translate-y-1 transition-all"
+                  >
+                     Generate First Quote
+                     <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                        <FileText size={16} />
+                     </div>
+                  </button>
+                  <button 
+                    onClick={onClose}
+                    className="w-full py-4 text-[9px] font-black text-text-muted uppercase tracking-[0.2em] hover:text-text-main transition-colors"
+                  >
+                     Dismiss & Return to Registry
+                  </button>
+               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

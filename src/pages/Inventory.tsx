@@ -3,6 +3,7 @@ import { Search, Plus, AlertTriangle, Package, Warehouse } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection } from '../lib/firestoreService';
 import { Material } from '../types';
+import { toast } from 'sonner';
 
 export default function Inventory() {
   const { data: materials, loading } = useCollection<Material>('materials');
@@ -65,7 +66,7 @@ export default function Inventory() {
         <button 
           onClick={() => {
             console.log('Button Click: Bulk Stock Adjustment');
-            alert('Bulk stock adjustment interface coming in next iteration. Currently managed via Purchase Orders.');
+            toast.info('Bulk stock adjustment interface coming soon. Currently managed via Purchase Orders.');
           }}
           className="bg-brand text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:shadow-xl hover:shadow-brand/20 transition-all flex items-center gap-3 active:scale-95"
         >

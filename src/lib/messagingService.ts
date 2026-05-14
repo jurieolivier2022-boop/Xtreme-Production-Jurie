@@ -27,9 +27,11 @@ const replacePlaceholders = (template: string, replacements: Record<string, stri
 };
 
 export const generateQuoteMessage = (quote: Quote, client: Client, company: CompanySettings | undefined, isWhatsapp = false) => {
+  let baseUrl = process.env.APP_URL || window.location.origin;
+  if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
   const companyName = company?.name || 'Dynamic Print Hub';
   const itemsSummary = quote.items.map(item => `- ${item.quantity}x ${item.description}: ${formatCurrency(item.totalPrice)}`).join('\n');
-  const approvalUrl = `${window.location.origin}/approval/q/${quote.id}`;
+  const approvalUrl = `${baseUrl}/approval/q/${quote.id}`;
   const totalAmount = formatCurrency(quote.total);
 
   const template = isWhatsapp 
@@ -47,8 +49,10 @@ export const generateQuoteMessage = (quote: Quote, client: Client, company: Comp
 };
 
 export const generateJobMessage = (job: Job, client: Client, company: CompanySettings | undefined, isWhatsapp = false) => {
+  let baseUrl = process.env.APP_URL || window.location.origin;
+  if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
   const companyName = company?.name || 'Dynamic Print Hub';
-  const trackingUrl = `${window.location.origin}/approval/${job.id}`;
+  const trackingUrl = `${baseUrl}/approval/${job.id}`;
   const dueDate = new Date(job.dueDate).toLocaleDateString();
 
   const template = isWhatsapp
@@ -67,8 +71,10 @@ export const generateJobMessage = (job: Job, client: Client, company: CompanySet
 };
 
 export const generateArtworkApprovalMessage = (job: Job, client: Client, company: CompanySettings | undefined, isWhatsapp = false) => {
+  let baseUrl = process.env.APP_URL || window.location.origin;
+  if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
   const companyName = company?.name || 'Dynamic Print Hub';
-  const approvalUrl = `${window.location.origin}/approval/${job.id}`;
+  const approvalUrl = `${baseUrl}/approval/${job.id}`;
 
   const template = isWhatsapp
     ? (company?.artworkWhatsappTemplate || `Hi {{clientName}},\n\nYour artwork for order {{jobNumber}} is ready! 🎨\n\nView and approve here: {{approvalUrl}}`)

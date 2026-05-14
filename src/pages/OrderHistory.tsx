@@ -2,16 +2,24 @@ import React, { useState } from 'react';
 import { Search, Calendar, FileText, Briefcase, Filter, ChevronRight, X, Clock, DollarSign, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection } from '../lib/firestoreService';
-import { Quote, Job, Client } from '../types';
+import { Quote, Job, Client, Department, Machine, Material } from '../types';
+import JobDetailsModal from '../components/JobDetailsModal';
+import { AnimatePresence } from 'motion/react';
 
 export default function OrderHistory() {
   const { data: quotes, loading: quotesLoading } = useCollection<Quote>('quotes');
   const { data: jobs, loading: jobsLoading } = useCollection<Job>('jobs');
   const { data: clients } = useCollection<Client>('clients');
+  const { data: departments } = useCollection<Department>('departments');
+  const { data: machines } = useCollection<Machine>('machines');
+  const { data: materials } = useCollection<Material>('materials');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [viewingJobDetails, setViewingJobDetails] = useState<Job | null>(null);
 
   const getClientName = (clientId: string) => {
     const client = clients.find(c => c.id === clientId);
@@ -194,7 +202,13 @@ export default function OrderHistory() {
                       </div>
                     </div>
 
-                    <button className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all">
+                    <button 
+                      onClick={() => {
+                        setViewingJobDetails(item.job!);
+                        setIsDetailsOpen(true);
+                      }}
+                      className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all"
+                    >
                       Access Job File
                     </button>
                   </div>
@@ -219,6 +233,20 @@ export default function OrderHistory() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {isDetailsOpen && viewingJobDetails && (
+          <JobDetailsModal 
+            job={viewingJobDetails}
+            clientId={viewingJobDetails.clientId}
+            clients={clients}
+            departments={departments}
+            machines={machines}
+            materials={materials}
+            onClose={() => setIsDetailsOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

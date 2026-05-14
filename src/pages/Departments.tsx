@@ -3,6 +3,7 @@ import { Layers, Plus, Trash2, Edit2, Search, X, CheckCircle2 } from 'lucide-rea
 import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Department } from '../types';
+import { toast } from 'sonner';
 
 const colorOptions = [
   { name: 'Red', bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', dot: 'bg-red-500' },
@@ -63,7 +64,7 @@ export default function Departments() {
       setIsModalOpen(false);
     } catch (error) {
       console.error('Error saving department:', error);
-      alert('Failed to save department details.');
+      toast.error('Failed to save department details.');
     } finally {
       setIsSaving(false);
     }

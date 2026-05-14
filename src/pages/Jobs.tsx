@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Search, Filter, Edit2, Share2, Trash2, CheckCircle2, Clock, AlertTriangle, Calendar, X, ChevronUp, ChevronDown, Plus, Mail, MessageCircle } from 'lucide-react';
+import { Search, Filter, Edit2, Share2, Trash2, CheckCircle2, Clock, AlertTriangle, Calendar, X, ChevronUp, ChevronDown, Plus, Mail, MessageCircle, FileText, ExternalLink, Printer, Settings, Wrench, Layers, Scissors, Check, Zap, Info, Book, Box } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection, updateDocument, deleteDocument } from '../lib/firestoreService';
-import { Job, Client, Department, CompanySettings } from '../types';
+import { Job, Client, Department, CompanySettings, Machine, Material } from '../types';
 import JobModal from '../components/JobModal';
+import JobDetailsModal from '../components/JobDetailsModal';
 import { shareViaWhatsApp, shareViaEmail } from '../lib/messagingService';
+import { motion, AnimatePresence } from 'motion/react';
 
 const priorityStyles = {
   Urgent: "bg-red-50 text-red-600 border border-red-100",
@@ -29,6 +31,8 @@ export default function Jobs() {
   const { data: jobs, loading: jobsLoading } = useCollection<Job>('jobs');
   const { data: clients, loading: clientsLoading } = useCollection<Client>('clients');
   const { data: departments, loading: deptsLoading } = useCollection<Department>('departments');
+  const { data: machines } = useCollection<Machine>('machines');
+  const { data: materials } = useCollection<Material>('materials');
   const { data: companyList } = useCollection<CompanySettings>('company_settings');
 
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -46,7 +50,9 @@ export default function Jobs() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [viewingJobDetails, setViewingJobDetails] = useState<Job | null>(null);
 
   const getClientName = (clientId: string) => {
     const client = clients.find(c => c.id === clientId);
@@ -289,8 +295,12 @@ export default function Jobs() {
               {sortedJobs.map((job, idx) => (
                 <tr 
                   key={job.id} 
+                  onClick={() => {
+                    setViewingJobDetails(job);
+                    setIsDetailsOpen(true);
+                  }}
                   className={cn(
-                    "hover:bg-brand-accent/[0.02] transition-colors group animate-in fade-in slide-in-from-left-2 fill-mode-both relative",
+                    "hover:bg-brand-accent/[0.02] transition-colors group animate-in fade-in slide-in-from-left-2 fill-mode-both relative cursor-pointer",
                     isUpdating === job.id && "opacity-50 pointer-events-none"
                   )}
                   style={{ animationDelay: `${idx * 0.05}s` }}
@@ -350,7 +360,7 @@ export default function Jobs() {
                       {job.priority}
                     </span>
                   </td>
-                  <td className="px-10 py-8 text-center">
+                  <td className="px-10 py-8 text-center" onClick={(e) => e.stopPropagation()}>
                     <div className="relative group/sel inline-block">
                       <select 
                         value={job.stage}
@@ -381,17 +391,31 @@ export default function Jobs() {
                       <span className="text-text-light font-black opacity-30">—</span>
                     )}
                   </td>
-                  <td className="px-10 py-8 text-right">
+                  <td className="px-10 py-8 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-3 translate-x-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
                       <button 
-                        onClick={() => handleEdit(job)}
+                        onClick={(e) => { e.stopPropagation(); handleEdit(job); }}
                         className="w-10 h-10 flex items-center justify-center text-text-light hover:text-brand-accent hover:bg-blue-50/50 rounded-2xl transition-all"
+                        title="Edit Job"
                       >
                         <Edit2 size={16} strokeWidth={2.5} />
                       </button>
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setViewingJobDetails(job);
+                          setIsDetailsOpen(true);
+                          setTimeout(() => window.print(), 500);
+                        }}
+                        className="w-10 h-10 flex items-center justify-center text-text-light hover:text-brand-accent hover:bg-blue-50/50 rounded-2xl transition-all"
+                        title="Print Job Card"
+                      >
+                        <Printer size={16} strokeWidth={2.5} />
+                      </button>
                       <div className="flex gap-1">
                         <button 
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             const client = clients.find(c => c.id === job.clientId);
                             if (client) shareViaWhatsApp('job', job, client, company);
                           }}
@@ -401,7 +425,8 @@ export default function Jobs() {
                           <MessageCircle size={16} strokeWidth={2.5} />
                         </button>
                         <button 
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             const client = clients.find(c => c.id === job.clientId);
                             if (client) shareViaEmail('job', job, client, company);
                           }}
@@ -412,7 +437,7 @@ export default function Jobs() {
                         </button>
                       </div>
                       <button 
-                        onClick={() => handleDelete(job.id)} 
+                        onClick={(e) => { e.stopPropagation(); handleDelete(job.id); }} 
                         className="w-10 h-10 flex items-center justify-center text-text-light hover:text-red-500 hover:bg-red-50/50 rounded-2xl transition-all"
                       >
                         <Trash2 size={16} strokeWidth={2.5} />
@@ -452,6 +477,24 @@ export default function Jobs() {
         onClose={() => setIsModalOpen(false)}
         job={editingJob}
       />
+
+      {isDetailsOpen && viewingJobDetails && (
+        <JobDetailsModal 
+          job={viewingJobDetails}
+          clientId={viewingJobDetails.clientId}
+          clients={clients}
+          departments={departments}
+          machines={machines}
+          materials={materials}
+          onClose={() => setIsDetailsOpen(false)}
+          onEdit={(job) => {
+            setIsDetailsOpen(false);
+            setEditingJob(job);
+            setIsModalOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }
+

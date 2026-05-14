@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { Search, Plus, Filter, Edit2, Share2, Trash2, Clock, AlertCircle, Briefcase, Mail, MessageCircle } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Plus, Filter, Edit2, Share2, Trash2, Clock, AlertCircle, Briefcase, Mail, MessageCircle, DollarSign, TrendingUp, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection, deleteDocument, updateDocument, createDocument, getNextSequence } from '../lib/firestoreService';
 import { Quote, Client, Job, CompanySettings } from '../types';
 import QuoteModal from '../components/QuoteModal';
 import { shareViaWhatsApp, shareViaEmail } from '../lib/messagingService';
+import { motion, AnimatePresence } from 'motion/react';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const statusStyles = {
   Accepted: "bg-emerald-50 text-emerald-600",
@@ -16,10 +19,21 @@ const statusStyles = {
 };
 
 export default function Quotes() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
-  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  const initialClientId = searchParams.get('clientId');
+
+  useEffect(() => {
+    if (initialClientId) {
+      setIsModalOpen(true);
+    }
+  }, [initialClientId]);
+
   const { data: quotes, loading: quotesLoading } = useCollection<Quote>('quotes');
   const { data: clients } = useCollection<Client>('clients');
   const { data: jobs, loading: jobsLoading } = useCollection<Job>('jobs');
@@ -29,10 +43,36 @@ export default function Quotes() {
 
   const loading = quotesLoading || jobsLoading;
 
+  const stats = useMemo(() => {
+    const totalValue = quotes.reduce((acc, q) => acc + q.total, 0);
+    const acceptedValue = quotes.filter(q => q.status === 'Accepted').reduce((acc, q) => acc + q.total, 0);
+    const pendingCount = quotes.filter(q => q.status === 'Sent' || q.status === 'Draft').length;
+    
+    return {
+      total: totalValue,
+      accepted: acceptedValue,
+      pending: pendingCount
+    };
+  }, [quotes]);
+
   const getClientName = (clientId: string) => {
     const client = clients.find(c => c.id === clientId);
     return client ? (client.companyName || client.name) : 'Unknown Client';
   };
+
+  const filteredQuotes = useMemo(() => {
+    return quotes.filter(quote => {
+      const clientName = getClientName(quote.clientId).toLowerCase();
+      const quoteNumber = quote.quoteNumber.toLowerCase();
+      const status = quote.status.toLowerCase();
+      const query = searchQuery.toLowerCase();
+      
+      const matchesSearch = clientName.includes(query) || quoteNumber.includes(query) || status.includes(query);
+      const matchesFilter = !statusFilter || quote.status === statusFilter;
+      
+      return matchesSearch && matchesFilter;
+    }).sort((a, b) => b.createdAt - a.createdAt);
+  }, [quotes, searchQuery, clients, statusFilter]);
 
   const handleEdit = (quote: Quote) => {
     console.log('Button Click: Edit Quote', { id: quote.id });
@@ -92,10 +132,10 @@ export default function Quotes() {
       };
       
       await createDocument('jobs', jobData);
-      alert(`Production Job ${jobNumber} created for ${clientName}`);
+      toast.success(`Production Job ${jobNumber} created for ${clientName}`);
     } catch (error) {
       console.error("Error creating job:", error);
-      alert("Failed to create job. Please try again.");
+      toast.error("Failed to create job. Please try again.");
     } finally {
       setIsUpdating(null);
     }
@@ -110,21 +150,102 @@ export default function Quotes() {
   }
 
   return (
-    <div className="flex flex-col gap-12 animate-in fade-in duration-700">
+    <div className="flex flex-col gap-10 animate-in fade-in duration-700">
+      {/* Stats Header */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card-minimal p-8 flex items-center justify-between overflow-hidden group relative"
+        >
+          <div className="absolute inset-0 grid-structure opacity-[0.03] pointer-events-none" />
+          <div className="relative z-10">
+            <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-2">Total Pipeline</p>
+            <h3 className="text-3xl font-black text-text-main tracking-tighter tabular-nums italic">R{stats.total.toLocaleString()}</h3>
+          </div>
+          <div className="w-14 h-14 bg-brand-accent/5 rounded-[1.5rem] flex items-center justify-center text-brand-accent group-hover:scale-110 transition-all relative z-10 shadow-sm border border-brand-accent/10">
+            <DollarSign size={24} />
+          </div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="card-minimal p-8 flex items-center justify-between overflow-hidden group relative"
+        >
+          <div className="absolute inset-0 grid-structure opacity-[0.03] pointer-events-none" />
+          <div className="relative z-10">
+            <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-2">Revenue Realized</p>
+            <h3 className="text-3xl font-black text-emerald-500 tracking-tighter tabular-nums italic">R{stats.accepted.toLocaleString()}</h3>
+          </div>
+          <div className="w-14 h-14 bg-emerald-50 rounded-[1.5rem] flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-all relative z-10 shadow-sm border border-emerald-100">
+            <CheckCircle2 size={24} />
+          </div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="card-minimal p-8 flex items-center justify-between overflow-hidden group relative"
+        >
+          <div className="absolute inset-0 grid-structure opacity-[0.03] pointer-events-none" />
+          <div className="relative z-10">
+            <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-2">Active Proposals</p>
+            <h3 className="text-3xl font-black text-brand tracking-tighter tabular-nums italic">{stats.pending} Units</h3>
+          </div>
+          <div className="w-14 h-14 bg-blue-50 rounded-[1.5rem] flex items-center justify-center text-brand group-hover:scale-110 transition-all relative z-10 shadow-sm border border-blue-100">
+            <TrendingUp size={24} />
+          </div>
+        </motion.div>
+      </div>
+
       <div className="flex items-center justify-between gap-8">
         <div className="flex items-center gap-6 flex-1">
           <div className="relative group w-full max-w-xl">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-text-light group-focus-within:text-brand-accent transition-all group-focus-within:scale-110" size={18} />
             <input 
               type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Filter sale pipeline..." 
               className="w-full pl-14 pr-6 py-4 bg-paper border border-border/80 rounded-3xl text-[11px] font-black uppercase tracking-[0.05em] focus:outline-none focus:ring-[8px] focus:ring-brand-accent/5 focus:border-brand-accent/40 transition-all shadow-sm"
             />
           </div>
-          <button className="flex items-center gap-2 px-8 py-4 bg-paper border border-border/80 rounded-3xl text-[10px] font-black text-text-muted hover:border-brand-accent hover:text-brand-accent transition-all shadow-sm uppercase tracking-widest">
-            <Filter size={18} />
-            Matrix Filter
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => {
+                const statuses = ['Draft', 'Sent', 'Accepted', 'Rejected'];
+                const currentIndex = statusFilter ? statuses.indexOf(statusFilter) : -1;
+                const nextIndex = currentIndex + 1;
+                const nextStatus = nextIndex >= statuses.length ? null : statuses[nextIndex];
+                setStatusFilter(nextStatus);
+                console.log('Button Click: Cycle Matrix Filter', { filter: nextStatus || 'All' });
+              }}
+              className={cn(
+                "flex items-center gap-2 px-8 py-4 border rounded-3xl text-[10px] font-black transition-all shadow-sm uppercase tracking-widest whitespace-nowrap",
+                statusFilter 
+                  ? "bg-brand text-white border-brand shadow-brand/20" 
+                  : "bg-paper border-border/80 text-text-muted hover:border-brand-accent hover:text-brand-accent"
+              )}
+            >
+              <Filter size={18} />
+              {statusFilter ? `Status: ${statusFilter}` : 'Matrix Filter'}
+            </button>
+            {statusFilter && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setStatusFilter(null);
+                }}
+                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shadow-lg border-2 border-white"
+                title="Clear Filter"
+              >
+                &times;
+              </button>
+            )}
+          </div>
         </div>
         <button 
           onClick={() => {
@@ -158,15 +279,19 @@ export default function Quotes() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
-              {quotes.map((quote, idx) => (
-                <tr 
-                  key={quote.id} 
-                  className={cn(
-                    "hover:bg-brand-accent/[0.02] transition-colors group animate-in fade-in slide-in-from-left-2 fill-mode-both relative",
-                    isUpdating === quote.id && "opacity-50 pointer-events-none"
-                  )}
-                  style={{ animationDelay: `${idx * 0.05}s` }}
-                >
+              <AnimatePresence mode="popLayout" initial={false}>
+                {filteredQuotes.map((quote, idx) => (
+                  <motion.tr 
+                    key={quote.id} 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className={cn(
+                      "hover:bg-brand-accent/[0.02] transition-colors group relative",
+                      isUpdating === quote.id && "opacity-50 pointer-events-none"
+                    )}
+                  >
                   {isUpdating === quote.id && (
                     <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px] z-50 flex items-center justify-center">
                       <div className="w-5 h-5 border-2 border-brand/20 border-t-brand rounded-full animate-spin" />
@@ -280,9 +405,10 @@ export default function Quotes() {
                       </button>
                     </div>
                   </td>
-                </tr>
+                </motion.tr>
               ))}
-              {quotes.length === 0 && (
+              </AnimatePresence>
+              {filteredQuotes.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-10 py-32 text-center relative z-10">
                     <div className="w-24 h-24 bg-surface text-text-light rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner border border-border/50 group hover:scale-110 transition-transform duration-700">
@@ -309,8 +435,13 @@ export default function Quotes() {
         onClose={() => {
           setIsModalOpen(false);
           setSelectedQuote(null);
+          // Clear the search param when closing the modal
+          const newParams = new URLSearchParams(searchParams);
+          newParams.delete('clientId');
+          setSearchParams(newParams);
         }} 
         quote={selectedQuote} 
+        initialClientId={initialClientId}
       />
     </div>
   );

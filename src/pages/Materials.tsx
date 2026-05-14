@@ -4,6 +4,7 @@ import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Material, Supplier, PricingSettings } from '../types';
 import { getActivePricingSettings } from '../lib/pricingService';
+import { toast } from 'sonner';
 
 export default function Materials() {
   const { data: materials, loading } = useCollection<Material>('materials');
@@ -224,7 +225,7 @@ function MaterialModal({ material, suppliers, onClose }: { material: Material | 
       onClose();
     } catch (error) {
       console.error('Error saving material:', error);
-      alert('Failed to save material specifications.');
+      toast.error('Failed to save material specifications.');
     } finally {
       setIsSaving(false);
     }

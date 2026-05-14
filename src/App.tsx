@@ -1,7 +1,9 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useParams, Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '@/src/components/layout/Sidebar';
 import { Header } from '@/src/components/layout/Header';
+import { MainLayout } from '@/src/components/layout/MainLayout';
+import { Toaster } from 'sonner';
 
 // Pages
 import Dashboard from '@/src/pages/Dashboard';
@@ -25,57 +27,54 @@ import MachineUtilization from '@/src/pages/MachineUtilization';
 import Departments from '@/src/pages/Departments';
 import ClientApproval from '@/src/pages/ClientApproval';
 
-export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes group-id="main-routes">
-        <Route path="/approve/:jobId" element={<Navigate to={`/approval/${window.location.pathname.split('/').pop()}`} replace />} />
-        <Route path="/approval/:jobId" element={<ClientApproval />} />
-        <Route path="/approval/q/:quoteId" element={<ClientApproval />} />
-        <Route path="/*" element={
-          <div className="flex bg-surface min-h-screen text-text-main font-sans selection:bg-blue-100 italic-none">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-              <Routes group-id="auth-routes">
-                <Route path="/" element={<PageWrapper title="Dashboard" component={<Dashboard />} />} />
-                <Route path="/clients" element={<PageWrapper title="Clients" component={<Clients />} />} />
-                <Route path="/materials" element={<PageWrapper title="Materials" component={<Materials />} />} />
-                <Route path="/suppliers" element={<PageWrapper title="Suppliers" component={<Suppliers />} />} />
-                <Route path="/products" element={<PageWrapper title="Products & Services" component={<Products />} />} />
-                <Route path="/ncr-books" element={<PageWrapper title="NCR Books" component={<NCRBooks />} />} />
-                <Route path="/litho-products" element={<PageWrapper title="Litho Products" component={<LithoProducts />} />} />
-                <Route path="/packages" element={<PageWrapper title="Packages" component={<Packages />} />} />
-                <Route path="/quotes" element={<PageWrapper title="Quotes" component={<Quotes />} />} />
-                <Route path="/jobs" element={<PageWrapper title="Jobs" component={<Jobs />} />} />
-                <Route path="/production-board" element={<PageWrapper title="Production Board" component={<ProductionBoard />} />} />
-                <Route path="/machines" element={<PageWrapper title="Machines" component={<Machines />} />} />
-                <Route path="/departments" element={<PageWrapper title="Departments" component={<Departments />} />} />
-                <Route path="/inventory" element={<PageWrapper title="Inventory" component={<Inventory />} />} />
-                <Route path="/purchasing" element={<PageWrapper title="Purchasing" component={<Purchasing />} />} />
-                <Route path="/reports" element={<PageWrapper title="Reports" component={<Reports />} />} />
-                <Route path="/utilization" element={<PageWrapper title="Machine Utilization" component={<MachineUtilization />} />} />
-                <Route path="/order-history" element={<PageWrapper title="Order History" component={<OrderHistory />} />} />
-                <Route path="/pricing-config" element={<Navigate to="/settings" replace />} />
-                <Route path="/settings" element={<PageWrapper title="Settings" component={<Settings />} />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
-          </div>
-        } />
-      </Routes>
-    </BrowserRouter>
-  );
+function ApproveRedirect() {
+  const { jobId } = useParams();
+  return <Navigate to={`/approval/${jobId}`} replace />;
 }
 
-function PageWrapper({ title, component }: { title: string, component: React.ReactNode }) {
+function QuoteRedirect() {
+  const { quoteId } = useParams();
+  return <Navigate to={`/approval/q/${quoteId}`} replace />;
+}
+
+export default function App() {
+  useEffect(() => {
+    console.log('[DEBUG] App mounted, window.location:', window.location.href);
+  }, []);
+
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <Header title={title} />
-      <div className="flex-1 overflow-y-auto bg-surface/50">
-        <div className="max-w-[1600px] mx-auto p-10">
-          {component}
-        </div>
-      </div>
-    </div>
+    <>
+      <Toaster position="top-right" expand={false} richColors />
+      <Routes>
+        <Route path="/approval/q/:quoteId" element={<ClientApproval />} />
+      <Route path="/approval/:jobId" element={<ClientApproval />} />
+      <Route path="/approve/:jobId" element={<ApproveRedirect />} />
+      <Route path="/approve/q/:quoteId" element={<QuoteRedirect />} />
+      
+      <Route element={<MainLayout />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/clients" element={<Clients />} />
+        <Route path="/materials" element={<Materials />} />
+        <Route path="/suppliers" element={<Suppliers />} />
+        <Route path="/products" element={<Products />} />
+        <Route path="/ncr-books" element={<NCRBooks />} />
+        <Route path="/litho-products" element={<LithoProducts />} />
+        <Route path="/packages" element={<Packages />} />
+        <Route path="/quotes" element={<Quotes />} />
+        <Route path="/jobs" element={<Jobs />} />
+        <Route path="/production-board" element={<ProductionBoard />} />
+        <Route path="/machines" element={<Machines />} />
+        <Route path="/departments" element={<Departments />} />
+        <Route path="/inventory" element={<Inventory />} />
+        <Route path="/purchasing" element={<Purchasing />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/utilization" element={<MachineUtilization />} />
+        <Route path="/order-history" element={<OrderHistory />} />
+        <Route path="/pricing-config" element={<Navigate to="/settings" replace />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  </>
   );
 }

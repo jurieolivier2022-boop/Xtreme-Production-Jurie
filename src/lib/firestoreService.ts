@@ -73,28 +73,66 @@ export function useCollection<T>(collectionPath: string, constraints: QueryConst
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Memoize constraints string to avoid unnecessary re-subscriptions
+  const constraintsKey = JSON.stringify(constraints);
+
   useEffect(() => {
+    let isMounted = true;
     setLoading(true);
+    
     try {
       const q = query(collection(db, collectionPath), ...constraints);
       const unsubscribe = onSnapshot(q, (snapshot) => {
+        if (!isMounted) return;
+        
         const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
         setData(docs);
         setLoading(false);
+        setError(null);
       }, (err) => {
-        handleFirestoreError(err, OperationType.LIST, collectionPath);
+        if (!isMounted) return;
+        console.error(`Subscription error for ${collectionPath}:`, err);
         setError(err);
         setLoading(false);
       });
-      return unsubscribe;
+      
+      return () => {
+        isMounted = false;
+        unsubscribe();
+      };
     } catch (err: any) {
-      handleFirestoreError(err, OperationType.LIST, collectionPath);
-      setError(err);
-      setLoading(false);
+      if (isMounted) {
+        setError(err);
+        setLoading(false);
+      }
     }
-  }, [collectionPath, JSON.stringify(constraints)]);
+  }, [collectionPath, constraintsKey]);
 
   return { data, loading, error };
+}
+
+/**
+ * Hook to monitor Firestore connection status
+ */
+export function useFirestoreConnection() {
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, '_connection_test_', 'check'), 
+      () => setIsConnected(true),
+      (err) => {
+        // If it's a permission error, we're still connected to the service
+        if (err.code === 'permission-denied') {
+          setIsConnected(true);
+        } else {
+          setIsConnected(false);
+        }
+      }
+    );
+    return unsub;
+  }, []);
+  
+  return { isConnected };
 }
 
 export async function getCollection<T>(collectionPath: string, constraints: QueryConstraint[] = []) {

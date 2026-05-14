@@ -1,18 +1,43 @@
 import React from 'react';
-import { Search, Plus, Bell } from 'lucide-react';
+import { Search, Plus, Bell, Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { useFirestoreConnection } from '@/src/lib/firestoreService';
+import { useAuth } from '@/src/lib/authContext';
+import { cn } from '@/src/lib/utils';
 
 interface HeaderProps {
   title: string;
 }
 
 export function Header({ title }: HeaderProps) {
+  const { isConnected } = useFirestoreConnection();
+  const { user } = useAuth();
+  
+  const initials = user?.displayName
+    ? user.displayName.split(' ').map(n => n[0]).join('')
+    : user?.email?.charAt(0).toUpperCase() || 'AU';
+  
   return (
     <header className="h-24 bg-paper/80 backdrop-blur-xl border-b border-border/50 px-10 flex items-center justify-between sticky top-0 z-10 shrink-0">
       <div className="animate-in fade-in slide-in-from-left-2 duration-500">
         <h2 className="text-2xl font-black text-text-main tracking-tighter uppercase italic">{title}</h2>
-        <div className="flex items-center gap-2 mt-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse" />
-          <p className="text-[9px] font-black text-text-light uppercase tracking-[0.2em]">Operational Node: 042</p>
+        <div className="flex items-center gap-4 mt-1">
+          <div className="flex items-center gap-2">
+            {isConnected === null ? (
+              <Loader2 className="w-1.5 h-1.5 animate-spin text-brand" />
+            ) : isConnected ? (
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+            ) : (
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]" />
+            )}
+            <p className={cn(
+              "text-[9px] font-black uppercase tracking-[0.2em]",
+              isConnected === false ? "text-red-500" : "text-text-light"
+            )}>
+              {isConnected === null ? 'Syncing Matrix...' : isConnected ? 'Operational Core' : 'Connection Interrupted'}
+            </p>
+          </div>
+          <div className="w-1 h-1 bg-border rounded-full" />
+          <p className="text-[9px] font-black text-text-light/40 uppercase tracking-[0.2em]">Node-042</p>
         </div>
       </div>
 
@@ -33,12 +58,16 @@ export function Header({ title }: HeaderProps) {
           </button>
 
           <div className="flex items-center gap-4 cursor-pointer p-1.5 pl-1.5 pr-4 rounded-2xl bg-surface/50 hover:bg-surface border border-transparent hover:border-border/60 transition-all group">
-            <div className="w-10 h-10 rounded-xl bg-brand text-white flex items-center justify-center font-black text-xs shadow-lg shadow-brand/10 transition-transform group-hover:scale-95">
-              AU
+            <div className="w-10 h-10 rounded-xl bg-brand text-white flex items-center justify-center font-black text-xs shadow-lg shadow-brand/10 transition-transform group-hover:scale-95 uppercase">
+              {initials}
             </div>
             <div className="hidden lg:flex flex-col">
-              <span className="text-xs font-black text-text-main leading-none uppercase tracking-tight">Admin User</span>
-              <span className="text-[9px] font-bold text-text-light uppercase tracking-widest mt-1">Superuser Access</span>
+              <span className="text-xs font-black text-text-main leading-none uppercase tracking-tight">
+                {user?.displayName || user?.email?.split('@')[0] || 'Guest User'}
+              </span>
+              <span className="text-[9px] font-bold text-text-light uppercase tracking-widest mt-1">
+                {user ? 'Authenticated Access' : 'System Sentinel'}
+              </span>
             </div>
           </div>
         </div>

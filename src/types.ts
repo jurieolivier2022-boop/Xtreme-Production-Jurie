@@ -144,6 +144,7 @@ export interface Quote {
   vat: number;
   total: number;
   profit: number;
+  notes?: string;
   status: 'Draft' | 'Sent' | 'Viewed' | 'Accepted' | 'Rejected' | 'Expired';
   expiryDate: number;
   createdAt: number;

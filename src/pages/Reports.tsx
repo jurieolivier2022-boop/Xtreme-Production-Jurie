@@ -14,6 +14,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { useCollection } from '../lib/firestoreService';
 import { Job, Quote } from '../types';
+import { toast } from 'sonner';
 
 export default function Reports() {
   const { data: jobs, loading: jobsLoading } = useCollection<Job>('jobs');
@@ -74,7 +75,7 @@ export default function Reports() {
         <button 
           onClick={() => {
             console.log('Button Click: Export Analytics');
-            alert('Analytical export generated. Downloading CSV...');
+            toast.success('Analytical export generated. Downloading CSV...');
           }}
           className="px-8 py-3 bg-brand text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:brightness-110 transition-all flex items-center gap-3"
         >

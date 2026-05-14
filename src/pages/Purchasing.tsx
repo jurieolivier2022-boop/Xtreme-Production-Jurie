@@ -4,6 +4,7 @@ import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument } from '../lib/firestoreService';
 import { Material, Supplier, PurchaseOrder, CompanySettings } from '../types';
 import { shareViaWhatsApp, shareViaEmail } from '../lib/messagingService';
+import { toast } from 'sonner';
 
 export default function Purchasing() {
   const { data: pos, loading: posLoading } = useCollection<PurchaseOrder>('purchase_orders');
@@ -41,7 +42,7 @@ export default function Purchasing() {
       });
     } catch (error) {
       console.error('Error receiving PO:', error);
-      alert('Failed to update inventory during PO reception.');
+      toast.error('Failed to update inventory during PO reception.');
     } finally {
       setIsUpdating(null);
     }
@@ -243,7 +244,7 @@ function PurchaseModal({ onClose, materials, suppliers }: { onClose: () => void,
       onClose();
     } catch (error) {
       console.error('Error creating PO:', error);
-      alert('Failed to generate purchase order.');
+      toast.error('Failed to generate purchase order.');
     } finally {
       setIsSaving(false);
     }

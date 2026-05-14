@@ -2,15 +2,23 @@ import React from 'react';
 import { MoreVertical, Calendar, User, Package, Briefcase, Filter } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection, updateDocument } from '../lib/firestoreService';
-import { Job, JobStage, Department } from '../types';
+import { Job, JobStage, Department, Client, Machine, Material } from '../types';
+import JobDetailsModal from '../components/JobDetailsModal';
+import { AnimatePresence } from 'motion/react';
 
 const COLUMNS: JobStage[] = ['Prepress', 'Printing', 'Laminating', 'Finishing', 'Embroidery', 'Screenprinting', 'Ready'];
 
 export default function ProductionBoard() {
   const { data: jobs, loading: jobsLoading } = useCollection<Job>('jobs');
   const { data: departments, loading: deptsLoading } = useCollection<Department>('departments');
+  const { data: clients } = useCollection<Client>('clients');
+  const { data: machines } = useCollection<Machine>('machines');
+  const { data: materials } = useCollection<Material>('materials');
+  
   const [selectedDeptId, setSelectedDeptId] = React.useState<string>('all');
   const [isUpdating, setIsUpdating] = React.useState<string | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
+  const [viewingJobDetails, setViewingJobDetails] = React.useState<Job | null>(null);
 
   const onDragStart = (e: React.DragEvent, id: string) => {
     console.log('Action: Drag Job Start', { id });
@@ -117,6 +125,10 @@ export default function ProductionBoard() {
                         key={job.id} 
                         draggable
                         onDragStart={(e) => onDragStart(e, job.id)}
+                        onClick={() => {
+                          setViewingJobDetails(job);
+                          setIsDetailsOpen(true);
+                        }}
                         className={cn(
                           "bg-white border border-border/60 rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.06)] hover:border-brand-accent/30 transition-all relative group/card cursor-grab active:cursor-grabbing transform-gpu hover:-translate-y-1",
                           isUpdating === job.id && "opacity-50 pointer-events-none scale-95"
@@ -188,6 +200,20 @@ export default function ProductionBoard() {
           );
         })}
       </div>
+
+      <AnimatePresence>
+        {isDetailsOpen && viewingJobDetails && (
+          <JobDetailsModal 
+            job={viewingJobDetails}
+            clientId={viewingJobDetails.clientId}
+            clients={clients}
+            departments={departments}
+            machines={machines}
+            materials={materials}
+            onClose={() => setIsDetailsOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

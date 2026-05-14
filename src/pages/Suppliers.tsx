@@ -4,6 +4,7 @@ import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Supplier } from '../types';
 import Papa from 'papaparse';
+import { toast } from 'sonner';
 
 export default function Suppliers() {
   const { data: suppliers, loading } = useCollection<Supplier>('suppliers');
@@ -49,10 +50,10 @@ export default function Suppliers() {
               importedCount++;
             }
           }
-          alert(`Successfully imported ${importedCount} suppliers.`);
+          toast.success(`Successfully imported ${importedCount} suppliers.`);
         } catch (error) {
           console.error('Import error:', error);
-          alert('Failed to import suppliers. Please check your CSV format.');
+          toast.error('Failed to import suppliers. Please check your CSV format.');
         } finally {
           setIsImporting(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
@@ -60,7 +61,7 @@ export default function Suppliers() {
       },
       error: (error) => {
         console.error('CSV parse error:', error);
-        alert('Error parsing CSV file.');
+        toast.error('Error parsing CSV file.');
         setIsImporting(false);
       }
     });
@@ -244,7 +245,7 @@ function SupplierModal({ supplier, onClose }: { supplier: Supplier | null, onClo
       onClose();
     } catch (error) {
       console.error('Error saving supplier:', error);
-      alert('Failed to save supplier details.');
+      toast.error('Failed to save supplier details.');
     } finally {
       setIsSaving(false);
     }

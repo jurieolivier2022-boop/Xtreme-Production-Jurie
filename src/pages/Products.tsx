@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { Search, Plus, Edit2, Trash2, Tag, Layers, Settings, Percent } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Tag, Layers, Settings, Percent, Box, CheckCircle2, ArrowRight } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Product, Material, Machine } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function Products() {
+  const navigate = useNavigate();
   const { data: products, loading } = useCollection<Product>('products');
   const { data: materials } = useCollection<Material>('materials');
   const { data: machines } = useCollection<Machine>('machines');
@@ -151,6 +155,7 @@ export default function Products() {
 }
 
 function ProductModal({ product, onClose }: { product: Product | null, onClose: () => void }) {
+  const navigate = useNavigate();
   const { data: materials } = useCollection<any>('materials');
   const { data: machines } = useCollection<any>('machines');
   
@@ -166,6 +171,8 @@ function ProductModal({ product, onClose }: { product: Product | null, onClose: 
     defaultMaterialId: product?.defaultMaterialId || ''
   });
 
+  const [showGuidedNextStep, setShowGuidedNextStep] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Button Click: Save Product', { isEdit: !!product });
@@ -175,11 +182,16 @@ function ProductModal({ product, onClose }: { product: Product | null, onClose: 
         await updateDocument('products', product.id, formData);
       } else {
         await createDocument('products', formData as any);
+        setShowGuidedNextStep(true);
       }
-      onClose();
+      if (!product && !showGuidedNextStep) {
+        // We will wait for them to click through if it's a new product
+      } else if (product) {
+        onClose();
+      }
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Failed to save product.');
+      toast.error('Failed to save product.');
     } finally {
       setIsSaving(false);
     }
@@ -298,6 +310,43 @@ function ProductModal({ product, onClose }: { product: Product | null, onClose: 
             </button>
           </div>
         </form>
+
+        <AnimatePresence>
+          {showGuidedNextStep && (
+            <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="absolute inset-0 bg-white/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-12 text-center"
+            >
+               <div className="w-20 h-20 bg-purple-50 text-purple-600 rounded-[2.5rem] flex items-center justify-center mb-6 border border-purple-100">
+                  <Box size={32} />
+               </div>
+               <h3 className="text-2xl font-black text-text-main tracking-tighter uppercase italic">Catalog Updated</h3>
+               <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-3">The product specifications are committed. Launch a quote?</p>
+               
+               <div className="grid grid-cols-1 gap-3 w-full mt-10">
+                  <button 
+                    onClick={() => {
+                       navigate('/quotes');
+                    }}
+                    className="w-full flex items-center justify-center gap-4 py-5 bg-brand text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:-translate-y-1 transition-all"
+                  >
+                     Start New Quote
+                     <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                        <ArrowRight size={16} />
+                     </div>
+                  </button>
+                  <button 
+                    onClick={onClose}
+                    className="w-full py-4 text-[9px] font-black text-text-muted uppercase tracking-[0.2em] hover:text-text-main transition-colors"
+                  >
+                     Return to Catalog
+                  </button>
+               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { calculateQuoteTotals, DEFAULT_PRICING_SETTINGS, getActivePricingSetting
 import { cn, sqMmToSqM } from '../lib/utils';
 import { generateJobCardPDF } from '../lib/pdfService';
 import { shareViaWhatsApp, shareViaEmail } from '../lib/messagingService';
+import { toast } from 'sonner';
 
 interface JobModalProps {
   isOpen: boolean;
@@ -84,7 +85,7 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
     if (!file) return;
 
     if (!file.type.includes('jpeg') && !file.type.includes('jpg') && !file.type.includes('pdf')) {
-      alert('Please upload a JPEG or PDF file.');
+      toast.error('Please upload a JPEG or PDF file.');
       return;
     }
 
@@ -367,7 +368,7 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
         setIsProcessing(false);
       }
     } else {
-      alert('Please select a client first.');
+      toast.error('Please select a client first.');
     }
   };
 
@@ -382,7 +383,7 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
         setIsProcessing(false);
       }
     } else {
-      alert('Please select a client first.');
+      toast.error('Please select a client first.');
     }
   };
 
@@ -422,7 +423,7 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
         setIsProcessing(false);
       }
     } else {
-      alert('Please select a client first.');
+      toast.error('Please select a client first.');
     }
   };
 
@@ -437,7 +438,7 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
         setIsProcessing(false);
       }
     } else {
-      alert('Please select a client first.');
+      toast.error('Please select a client first.');
     }
   };
 
@@ -452,7 +453,7 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
         setIsProcessing(false);
       }
     } else {
-      alert('Please select a client first.');
+      toast.error('Please select a client first.');
     }
   };
 
@@ -483,13 +484,14 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
         await createDocument('jobs', finalData as any);
       }
       setShowSuccess(true);
+      toast.success('Job saved successfully.');
       setTimeout(() => {
         onClose();
         setShowSuccess(false);
       }, 1500);
     } catch (error) {
       console.error('Error saving job:', error);
-      alert('Failed to save job. Please check console for details.');
+      toast.error('Failed to save job. Please check console for details.');
     } finally {
       setIsSaving(false);
     }
@@ -499,8 +501,8 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 bg-text-main/20 backdrop-blur-sm overflow-y-auto pt-10 sm:pt-20">
-      <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 relative mb-10 sm:mb-20">
-        <div className="p-8 border-b border-border flex items-center justify-between shrink-0">
+      <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 relative mb-10 sm:mb-20 printable-content">
+        <div className="p-8 border-b border-border flex items-center justify-between shrink-0 no-print">
           <div>
             <h2 className="text-2xl font-bold text-text-main tracking-tight">{job ? 'Edit Job Card' : 'Direct Job Entry'}</h2>
             <p className="text-xs font-black text-brand-accent uppercase tracking-widest mt-1">Manual workflow bypass — #{formData.jobNumber}</p>
@@ -1043,7 +1045,7 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
           </div>
         </div>
 
-        <div className="p-8 bg-paper border-t border-border flex items-center justify-between shrink-0">
+        <div className="p-8 bg-paper border-t border-border flex items-center justify-between shrink-0 no-print">
           <div className="flex flex-col">
             <span className="text-[10px] font-black text-brand-accent uppercase tracking-[0.2em] mb-1 leading-none">Job Value Estimation</span>
             <div className="flex items-baseline gap-2">

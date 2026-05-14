@@ -1,6 +1,12 @@
 {
-  "name": "SignPro Graphics ERP",
-  "description": "Comprehensive print shop management system featuring automated quoting, production workflow, inventory tracking, and financial reporting.",
-  "requestFramePermissions": [],
-  "majorCapabilities": []
+  "name": "XPressPrint ERP",
+  "description": "High-efficiency printing and signage management system with real-time production flow and automated quoting.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

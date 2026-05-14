@@ -1,13 +1,20 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { DollarSign, TrendingUp, Briefcase, FileText, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { DollarSign, TrendingUp, Briefcase, FileText, Clock, CheckCircle2, AlertCircle, Users, Box, Share2, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection } from '../lib/firestoreService';
-import { Quote, Job } from '../types';
+import { Quote, Job, Client, Product } from '../types';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
-  const { data: quotes } = useCollection<Quote>('quotes');
-  const { data: jobs } = useCollection<Job>('jobs');
+  const navigate = useNavigate();
+  const { data: quotes, loading: quotesLoading } = useCollection<Quote>('quotes');
+  const { data: jobs, loading: jobsLoading } = useCollection<Job>('jobs');
+  const { data: clients, loading: clientsLoading } = useCollection<Client>('clients');
+  const { data: products, loading: productsLoading } = useCollection<Product>('products');
+
+  const loading = quotesLoading || jobsLoading || clientsLoading || productsLoading;
 
   const mtdRevenue = quotes
     .filter(q => q.status === 'Accepted' && new Date(q.createdAt).getMonth() === new Date().getMonth())
@@ -20,7 +27,6 @@ export default function Dashboard() {
   const activeJobsCount = jobs.filter(j => j.stage !== 'Delivered' && j.stage !== 'Cancelled').length;
   const pendingQuotesCount = quotes.filter(q => q.status === 'Sent' || q.status === 'Viewed' || q.status === 'Draft').length;
 
-  // Chart data calculation
   const chartData = [
     { name: 'Mon', revenue: 4200 },
     { name: 'Tue', revenue: 3800 },
@@ -38,11 +44,68 @@ export default function Dashboard() {
         <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-2">Real-time production & revenue monitoring</p>
       </header>
 
+      {/* Guided Workflow Section */}
+      <section className="animate-in slide-in-from-top-4 duration-700">
+        <div className="flex items-center justify-between mb-6 px-2">
+           <h3 className="text-[11px] font-black text-text-light uppercase tracking-[0.3em] italic">System Initialization Sequence</h3>
+           <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-brand uppercase tracking-widest">Guide Active</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+           </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <WorkflowStep 
+            id={1}
+            title="Registry: Clients"
+            desc="Onboard partners into the matrix"
+            icon={Users}
+            link="/clients"
+            color="blue"
+            isComplete={clients.length > 0}
+            loading={clientsLoading}
+            navigate={navigate}
+          />
+          <WorkflowStep 
+            id={2}
+            title="Catalog: Products"
+            desc="Define units & technical specs"
+            icon={Box}
+            link="/products"
+            color="purple"
+            isComplete={products.length > 0}
+            loading={productsLoading}
+            navigate={navigate}
+          />
+          <WorkflowStep 
+            id={3}
+            title="Engine: Quoting"
+            desc="Generate cost estimates"
+            icon={FileText}
+            link="/quotes"
+            color="amber"
+            isComplete={quotes.length > 0}
+            loading={quotesLoading}
+            navigate={navigate}
+          />
+          <WorkflowStep 
+            id={4}
+            title="Operations: Dispatch"
+            desc="Finalize order & production"
+            icon={Share2}
+            link="/jobs"
+            color="emerald"
+            isComplete={jobs.length > 0}
+            loading={jobsLoading}
+            navigate={navigate}
+          />
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard label="Revenue MTD" value={`R ${mtdRevenue.toLocaleString()}`} icon={DollarSign} color="blue" trend="+12.5%" link="/reports" />
-        <StatCard label="Net Profit" value={`R ${mtdProfit.toLocaleString()}`} icon={TrendingUp} color="emerald" trend="+8.2%" link="/reports" />
-        <StatCard label="Active Fleet" value={activeJobsCount.toString()} icon={Briefcase} color="purple" trend="0" link="/jobs" />
-        <StatCard label="Quote Pipeline" value={pendingQuotesCount.toString()} icon={FileText} color="amber" trend="-2" link="/quotes" />
+        <StatCard label="Revenue MTD" value={loading ? '...' : `R ${mtdRevenue.toLocaleString()}`} icon={DollarSign} color="blue" trend="+12.5%" link="/reports" navigate={navigate} />
+        <StatCard label="Net Profit" value={loading ? '...' : `R ${mtdProfit.toLocaleString()}`} icon={TrendingUp} color="emerald" trend="+8.2%" link="/reports" navigate={navigate} />
+        <StatCard label="Active Fleet" value={loading ? '...' : activeJobsCount.toString()} icon={Briefcase} color="purple" trend="0" link="/jobs" navigate={navigate} />
+        <StatCard label="Quote Pipeline" value={loading ? '...' : pendingQuotesCount.toString()} icon={FileText} color="amber" trend="-2" link="/quotes" navigate={navigate} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -119,27 +182,36 @@ export default function Dashboard() {
             <h3 className="text-xl font-black tracking-tighter uppercase italic mb-10 relative z-10">Real-Time Log</h3>
             
             <div className="space-y-6 relative z-10">
-              {quotes.slice(0, 4).map((quote, idx) => (
-                <ActivityItem 
-                  key={quote.id}
-                  icon={quote.status === 'Accepted' ? CheckCircle2 : FileText} 
-                  title={quote.status === 'Accepted' ? "Order Finalized" : "Discovery Quote"} 
-                  subject={quote.quoteNumber} 
-                  time={new Date(quote.createdAt).toLocaleDateString()} 
-                  color="white"
-                  delay={idx * 0.1}
-                />
-              ))}
-              {quotes.length === 0 && (
+              {loading ? (
                 <div className="flex flex-col items-center justify-center py-12 opacity-40">
-                  <Clock className="mb-4" size={32} />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-center">Awaiting System Cycles...</p>
+                  <Loader2 className="mb-4 animate-spin" size={32} />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-center">Syncing Archive...</p>
                 </div>
+              ) : (
+                <>
+                  {quotes.slice(0, 4).map((quote, idx) => (
+                    <ActivityItem 
+                      key={quote.id}
+                      icon={quote.status === 'Accepted' ? CheckCircle2 : FileText} 
+                      title={quote.status === 'Accepted' ? "Order Finalized" : "Discovery Quote"} 
+                      subject={quote.quoteNumber} 
+                      time={new Date(quote.createdAt).toLocaleDateString()} 
+                      color="white"
+                      delay={idx * 0.1}
+                    />
+                  ))}
+                  {quotes.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 opacity-40">
+                      <Clock className="mb-4" size={32} />
+                      <p className="text-[10px] font-black uppercase tracking-widest text-center">Awaiting System Cycles...</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
             
             <button 
-              onClick={() => window.location.href = '/quotes'}
+              onClick={() => navigate('/quotes')}
               className="w-full mt-12 py-4 text-[10px] font-black uppercase tracking-[0.2em] bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl transition-all relative z-10"
             >
               Access Full Archives
@@ -147,7 +219,10 @@ export default function Dashboard() {
           </div>
           
           <div 
-            onClick={() => alert('Support system active. For urgent issues contact hardware maintenance.')}
+            onClick={() => toast.info('Support system active at L1. Hardware maintenance is standing by.', {
+              description: 'For urgent escalations, please check the system logs in settings.',
+              duration: 5000
+            })}
             className="card-minimal p-8 bg-brand-accent text-white group cursor-pointer overflow-hidden transition-transform active:scale-95"
           >
              <div className="flex justify-between items-start">
@@ -164,7 +239,72 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ label, value, icon: Icon, color, trend, link }: any) {
+function WorkflowStep({ id, title, desc, icon: Icon, link, color, isComplete, loading, navigate }: any) {
+  const colors = {
+    blue: "text-blue-600 bg-blue-50 border-blue-100",
+    purple: "text-purple-600 bg-purple-50 border-purple-100",
+    amber: "text-amber-600 bg-amber-50 border-amber-100",
+    emerald: "text-emerald-600 bg-emerald-50 border-emerald-100",
+  };
+
+  const progressColors = {
+    blue: "bg-blue-600",
+    purple: "bg-purple-600",
+    amber: "bg-amber-600",
+    emerald: "bg-emerald-600",
+  };
+
+  return (
+    <div 
+      onClick={() => navigate(link)}
+      className={cn(
+        "group cursor-pointer relative bg-white p-8 rounded-[2.5rem] border border-border shadow-sm hover:border-brand-accent/30 transition-all flex flex-col gap-6 overflow-hidden",
+        isComplete && "border-emerald-100 bg-emerald-50/5"
+      )}
+    >
+      <div className="absolute top-0 right-0 w-32 h-32 bg-brand/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:scale-125 transition-transform duration-700" />
+      
+      <div className="flex items-center justify-between relative z-10">
+        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center border transition-all duration-500 group-hover:rounded-xl", colors[color as keyof typeof colors])}>
+          <Icon size={24} strokeWidth={2.5} />
+        </div>
+        <div className="flex flex-col items-end">
+           <span className="text-[40px] font-black text-text-main/5 italic leading-none">{id}</span>
+           {loading ? (
+             <div className="mt-1 text-brand/40 animate-spin">
+               <Loader2 size={10} />
+             </div>
+           ) : isComplete && (
+             <div className="flex items-center gap-1 mt-1 text-emerald-600 font-black text-[8px] uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+               <CheckCircle2 size={10} />
+               Valid
+             </div>
+           )}
+        </div>
+      </div>
+
+      <div className="relative z-10 flex-1">
+        <h4 className="text-sm font-black text-text-main uppercase tracking-tight group-hover:text-brand transition-colors">{title}</h4>
+        <p className="text-[10px] text-text-light font-bold uppercase tracking-widest mt-2 leading-relaxed">{desc}</p>
+      </div>
+
+      <div className="flex items-center justify-between relative z-10 group/btn">
+         <div className="h-1 flex-1 bg-surface rounded-full mr-6 overflow-hidden">
+            <div className={cn(
+               "h-full rounded-full transition-all duration-1000",
+               progressColors[color as keyof typeof progressColors],
+               isComplete ? "w-full" : "w-1/3 opacity-30"
+            )} />
+         </div>
+         <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center text-text-light group-hover:text-brand group-hover:border-brand transition-all">
+            <ArrowRight size={14} strokeWidth={3} />
+         </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon: Icon, color, trend, link, navigate }: any) {
   const colors = {
     blue: "text-brand-accent border-brand-accent/10 bg-brand-accent/5",
     emerald: "text-emerald-500 border-emerald-500/10 bg-emerald-500/5",
@@ -174,7 +314,7 @@ function StatCard({ label, value, icon: Icon, color, trend, link }: any) {
 
   return (
     <div 
-      onClick={() => link && (window.location.href = link)}
+      onClick={() => link && navigate(link)}
       className="card-minimal group cursor-pointer border-border/50 hover:border-brand-accent/30 transition-all duration-500"
     >
       <div className="flex items-center justify-between mb-8">

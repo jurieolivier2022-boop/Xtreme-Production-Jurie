@@ -4,6 +4,7 @@ import { CheckCircle2, MessageSquare, AlertCircle, Clock, Download, Image as Ima
 import { getDocument, updateDocument } from '../lib/firestoreService';
 import { Job, Quote } from '../types';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 
 export default function ClientApproval() {
   const { jobId, quoteId } = useParams<{ jobId?: string, quoteId?: string }>();
@@ -16,19 +17,30 @@ export default function ClientApproval() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    console.log('[DEBUG] ClientApproval component mounted');
+  }, []);
+
+  useEffect(() => {
     async function fetchData() {
+      console.log('[DEBUG] ClientApproval fetchData starting:', { jobId, quoteId });
       try {
         if (jobId) {
           const data = await getDocument('jobs', jobId);
-          const jobData = data as Job;
-          setJob(jobData);
-          if (jobData.artwork && jobData.artwork.length > 0) {
-            setSelectedArtworkId(jobData.artwork[jobData.artwork.length - 1].id);
-            setFeedback(jobData.artwork[jobData.artwork.length - 1].feedback || '');
+          console.log('[DEBUG] Job data fetched:', data);
+          if (data) {
+            const jobData = data as Job;
+            setJob(jobData);
+            if (jobData.artwork && jobData.artwork.length > 0) {
+              setSelectedArtworkId(jobData.artwork[jobData.artwork.length - 1].id);
+              setFeedback(jobData.artwork[jobData.artwork.length - 1].feedback || '');
+            }
           }
         } else if (quoteId) {
           const data = await getDocument('quotes', quoteId);
-          setQuote(data as Quote);
+          console.log('[DEBUG] Quote data fetched:', data);
+          if (data) {
+            setQuote(data as Quote);
+          }
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -57,7 +69,7 @@ export default function ClientApproval() {
       setQuote({ ...quote, status });
     } catch (error) {
       console.error("Error updating quote:", error);
-      alert("Failed to submit response. Please try again.");
+      toast.error("Failed to submit response. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -163,19 +175,32 @@ export default function ClientApproval() {
     );
   }
 
-  if (!job || !job.artwork || job.artwork.length === 0) {
+  if (!loading && !quote && !job) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 text-center">
         <div className="max-w-md">
           <AlertCircle size={64} className="mx-auto text-red-500 mb-6" />
-          <h1 className="text-3xl font-black text-text-main tracking-tighter uppercase italic mb-4">Artwork Not Found</h1>
-          <p className="text-text-muted font-bold">The artwork link you followed is invalid or has been moved. Please contact production for a new link.</p>
+          <h1 className="text-3xl font-black text-text-main tracking-tighter uppercase italic mb-4">Record Not Found</h1>
+          <p className="text-text-muted font-bold">The link you followed is invalid or the document has been removed. Please contact us for a new link.</p>
         </div>
       </div>
     );
   }
 
-  const currentArtwork = job.artwork.find(a => a.id === selectedArtworkId) || job.artwork[job.artwork.length - 1];
+  const artworks = job?.artwork || [];
+  const currentArtwork = artworks.find(a => a.id === selectedArtworkId) || artworks[artworks.length - 1];
+
+  if (jobId && (!job || artworks.length === 0)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 text-center">
+        <div className="max-w-md">
+          <AlertCircle size={64} className="mx-auto text-red-500 mb-6" />
+          <h1 className="text-3xl font-black text-text-main tracking-tighter uppercase italic mb-4">Artwork Not Found</h1>
+          <p className="text-text-muted font-bold">No artwork proofs have been uploaded for this job yet. Please check back later or contact production.</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleAction = async (status: 'Approved' | 'Changes Requested') => {
     if (!jobId || !job || !currentArtwork) return;
@@ -194,7 +219,7 @@ export default function ClientApproval() {
       setJob({ ...job, artwork: updatedArtwork });
     } catch (error) {
       console.error("Error updating artwork:", error);
-      alert("Failed to submit appraisal. Please try again.");
+      toast.error("Failed to submit appraisal. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

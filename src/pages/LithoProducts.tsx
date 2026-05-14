@@ -4,6 +4,7 @@ import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { LithoProduct, LithoPricingTier } from '../types';
 import QuoteModal from '../components/QuoteModal';
+import { toast } from 'sonner';
 
 export default function LithoProducts() {
   const { data: products, loading } = useCollection<LithoProduct>('litho_products');
@@ -234,7 +235,7 @@ function RegisterModal({ product, onClose }: { product: LithoProduct | null, onC
       onClose();
     } catch (error) {
       console.error('Error saving litho product:', error);
-      alert('Failed to save product specifications.');
+      toast.error('Failed to save product specifications.');
     } finally {
       setIsSaving(false);
     }

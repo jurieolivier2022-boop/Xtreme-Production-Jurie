@@ -3,6 +3,7 @@ import { Cpu, Edit2, Trash2, Zap, AlertTriangle, Plus } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Machine } from '../types';
+import { toast } from 'sonner';
 
 export default function Machines() {
   const { data: machines, loading } = useCollection<Machine>('machines');
@@ -18,14 +19,32 @@ export default function Machines() {
 
   const handleDelete = async (id: string) => {
     console.log('Button Click: Delete Machine', { id });
-    if (confirm('Delete this machine?')) {
-      setIsUpdating(id);
-      try {
-        await deleteDocument('machines', id);
-      } finally {
-        setIsUpdating(null);
-      }
-    }
+    toast.custom((t) => (
+      <div className="bg-white p-6 rounded-3xl shadow-2xl border border-border min-w-[320px] animate-in slide-in-from-bottom-5">
+        <h3 className="text-sm font-black uppercase tracking-tight text-text-main mb-2">Delete Machine?</h3>
+        <p className="text-xs text-text-light font-bold mb-6">This action cannot be undone. All production logs will be preserved but the asset will be removed.</p>
+        <div className="flex gap-3">
+          <button onClick={() => toast.dismiss(t)} className="flex-1 py-3 bg-surface text-[10px] font-black uppercase tracking-widest rounded-xl border border-border">Cancel</button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t);
+              setIsUpdating(id);
+              try {
+                await deleteDocument('machines', id);
+                toast.success('Machine record purged from registry.');
+              } catch (error) {
+                toast.error('Failed to purge record.');
+              } finally {
+                setIsUpdating(null);
+              }
+            }} 
+            className="flex-1 py-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-red-100"
+          >
+            Purge Assets
+          </button>
+        </div>
+      </div>
+    ));
   };
 
   if (loading) {
@@ -168,7 +187,7 @@ function MachineModal({ machine, onClose }: { machine: Machine | null, onClose: 
       onClose();
     } catch (error) {
       console.error('Error saving machine:', error);
-      alert('Failed to save machine details.');
+      toast.error('Failed to save machine details.');
     } finally {
       setIsSaving(false);
     }

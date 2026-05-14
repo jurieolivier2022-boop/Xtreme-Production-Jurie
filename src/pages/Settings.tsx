@@ -5,6 +5,7 @@ import { PricingSettings, CompanySettings } from '../types';
 import { DEFAULT_PRICING_SETTINGS } from '../lib/pricingService';
 import { cn } from '../lib/utils';
 import { AddressInput } from '../components/AddressInput';
+import { toast } from 'sonner';
 
 const SETTINGS_COLLECTION = 'settings';
 
@@ -37,7 +38,6 @@ export default function SettingsPage() {
   const [pricing, setPricing] = useState<PricingSettings>(DEFAULT_PRICING_SETTINGS);
   const [company, setCompany] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS);
   const [isSaving, setIsSaving] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,7 +45,7 @@ export default function SettingsPage() {
     if (!file) return;
 
     if (!file.type.includes('jpeg') && !file.type.includes('jpg')) {
-      alert('Please upload a JPEG image.');
+      toast.error('Please upload a JPEG image.');
       return;
     }
 
@@ -76,11 +76,10 @@ export default function SettingsPage() {
     setIsSaving(true);
     try {
       await setDocument(SETTINGS_COLLECTION, 'pricing', pricing);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
+      toast.success('Pricing engine parameters updated.');
     } catch (error) {
       console.error('Error saving pricing:', error);
-      alert('Failed to save pricing settings.');
+      toast.error('Failed to save pricing settings.');
     } finally {
       setIsSaving(false);
     }
@@ -91,11 +90,10 @@ export default function SettingsPage() {
     setIsSaving(true);
     try {
       await setDocument('company_settings', 'company', company);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
+      toast.success('Business profile updated successfully.');
     } catch (error) {
       console.error('Error saving company profile:', error);
-      alert('Failed to save business profile.');
+      toast.error('Failed to save business profile.');
     } finally {
       setIsSaving(false);
     }
@@ -749,17 +747,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {showSuccess && (
-        <div className="fixed bottom-10 right-10 bg-emerald-600 text-white px-8 py-5 rounded-3xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-right-10 duration-500 z-50">
-          <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
-            <Check size={20} />
-          </div>
-          <div>
-            <p className="font-black uppercase tracking-widest text-[10px]">Cloud Sync Successful</p>
-            <p className="text-xs font-bold opacity-80 italic">Global settings have been propagated system-wide.</p>
-          </div>
-        </div>
-      )}
+      {/* No success toast needed here as sonner handles it */}
     </div>
   );
 }
