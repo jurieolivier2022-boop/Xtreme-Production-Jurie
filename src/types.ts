@@ -52,6 +52,8 @@ export interface Machine {
   costUnit: 'hr' | 'm²' | 'item' | 'copy' | 'page';
   status: 'Active' | 'Idle' | 'Maintenance';
   utilization?: number;
+  lastMaintenanceDate?: number;
+  nextMaintenanceDate?: number;
 }
 
 export interface Department {
@@ -81,6 +83,7 @@ export interface QuoteItem {
   originId: string;
   productId?: string; // Keep for backward compatibility or refactor later
   materialId?: string;
+  machineId?: string;
   description: string;
   width?: number; // in mm
   length?: number; // in mm
@@ -250,6 +253,12 @@ export interface Job {
   dueDate: number;
   assignedMachineId?: string;
   artworkStatus: 'Pending' | 'Approved' | 'N/A';
+  completionPhotos?: {
+    id: string;
+    url: string;
+    uploadedAt: number;
+    notes?: string;
+  }[];
   ncrDetails?: {
     paperColors: string;
     startNumber: string;
@@ -258,5 +267,6 @@ export interface Job {
     bindingType?: string;
     bindingPosition?: string;
   };
+  notes?: string;
   createdAt: number;
 }

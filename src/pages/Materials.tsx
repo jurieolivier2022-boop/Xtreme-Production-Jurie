@@ -4,6 +4,7 @@ import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Material, Supplier, PricingSettings } from '../types';
 import { getActivePricingSettings } from '../lib/pricingService';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { toast } from 'sonner';
 
 export default function Materials() {
@@ -16,6 +17,8 @@ export default function Materials() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [materialToDelete, setMaterialToDelete] = useState<string | null>(null);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [viewingMaterial, setViewingMaterial] = useState<Material | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -35,15 +38,24 @@ export default function Materials() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     console.log('Button Click: Delete Material', { id });
-    if (confirm('Are you sure you want to delete this material?')) {
-      setIsUpdating(id);
-      try {
-        await deleteDocument('materials', id);
-      } finally {
-        setIsUpdating(null);
-      }
+    setMaterialToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!materialToDelete) return;
+    setIsUpdating(materialToDelete);
+    try {
+      await deleteDocument('materials', materialToDelete);
+      toast.success('Substrate removed from library.');
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      toast.error('Failed to remove substrate.');
+    } finally {
+      setIsUpdating(null);
+      setMaterialToDelete(null);
     }
   };
 
@@ -178,6 +190,17 @@ export default function Materials() {
           onClose={() => setViewingMaterial(null)} 
         />
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Remove Media from Library?"
+        message="This will delete the media specification from your library. This media will no longer be available for auto-quoting calculations, though existing quotes will remain unaffected."
+        confirmText="Remove Media"
+        variant="danger"
+        isLoading={!!isUpdating}
+      />
     </div>
   );
 }

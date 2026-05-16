@@ -161,7 +161,7 @@
         "items": { "type": "array" },
         "total": { "type": "number" },
         "stage": { "type": "string" },
-        "priority": { "type": "string" },
+        "priority": { "type": "string", "enum": ["Normal", "High", "Urgent"] },
         "dueDate": { "type": "number" },
         "assignedMachineId": { "type": "string" },
         "artworkStatus": { "type": "string" },

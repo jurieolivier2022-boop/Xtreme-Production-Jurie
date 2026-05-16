@@ -4,12 +4,15 @@ import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Supplier } from '../types';
 import Papa from 'papaparse';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { toast } from 'sonner';
 
 export default function Suppliers() {
   const { data: suppliers, loading } = useCollection<Supplier>('suppliers');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState<string | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -78,15 +81,24 @@ export default function Suppliers() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     console.log('Button Click: Delete Supplier', { id });
-    if (confirm('Delete this supplier?')) {
-      setIsUpdating(id);
-      try {
-        await deleteDocument('suppliers', id);
-      } finally {
-        setIsUpdating(null);
-      }
+    setSupplierToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!supplierToDelete) return;
+    setIsUpdating(supplierToDelete);
+    try {
+      await deleteDocument('suppliers', supplierToDelete);
+      toast.success('Supplier decommissioned from network.');
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      toast.error('Failed to remove supplier.');
+    } finally {
+      setIsUpdating(null);
+      setSupplierToDelete(null);
     }
   };
 
@@ -215,6 +227,17 @@ export default function Suppliers() {
           onClose={() => setIsModalOpen(false)} 
         />
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Blacklist Supplier?"
+        message="Decommissioning this supplier will remove them from the procurement registry. Active orders from this vendor should be fulfilled before removal."
+        confirmText="Decommission"
+        variant="danger"
+        isLoading={!!isUpdating}
+      />
     </div>
   );
 }

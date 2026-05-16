@@ -20,34 +20,65 @@ import {
   LogOut,
   ChevronLeft,
   Layers,
-  Printer
+  Printer,
+  ChevronDown
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { useLocation } from 'react-router-dom';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-  { icon: Users, label: 'Clients', path: '/clients' },
-  { icon: Box, label: 'Materials', path: '/materials' },
-  { icon: Truck, label: 'Suppliers', path: '/suppliers' },
-  { icon: Tag, label: 'Products', path: '/products' },
-  { icon: BookOpen, label: 'NCR Registry', path: '/ncr-books' },
-  { icon: Printer, label: 'Litho Registry', path: '/litho-products' },
-  { icon: Package, label: 'Packages', path: '/packages' },
+  { icon: Columns, label: 'Production Board', path: '/production-board' },
   { icon: FileText, label: 'Quotes', path: '/quotes' },
   { icon: Briefcase, label: 'Jobs', path: '/jobs' },
-  { icon: Columns, label: 'Production Board', path: '/production-board' },
-  { icon: Cpu, label: 'Machines', path: '/machines' },
-  { icon: Layers, label: 'Departments', path: '/departments' },
-  { icon: Warehouse, label: 'Inventory', path: '/inventory' },
-  { icon: ShoppingCart, label: 'Purchasing', path: '/purchasing' },
-  { icon: BarChart3, label: 'Reports', path: '/reports' },
-  { icon: Cpu, label: 'Utilization', path: '/utilization' },
-  { icon: History, label: 'Order History', path: '/order-history' },
-  { icon: Settings, label: 'Settings', path: '/settings' },
+  { icon: Users, label: 'Clients', path: '/clients' },
+  { 
+    icon: Box, 
+    label: 'Inventory & Registry', 
+    path: '/inventory-group',
+    children: [
+      { icon: Box, label: 'Materials', path: '/materials' },
+      { icon: Tag, label: 'Products', path: '/products' },
+      { icon: Printer, label: 'Litho Registry', path: '/litho-products' },
+      { icon: BookOpen, label: 'NCR Registry', path: '/ncr-books' },
+      { icon: Package, label: 'Packages', path: '/packages' },
+    ]
+  },
+  { 
+    icon: Truck, 
+    label: 'Procurement', 
+    path: '/procurement-group',
+    children: [
+      { icon: Warehouse, label: 'Inventory', path: '/inventory' },
+      { icon: Truck, label: 'Suppliers', path: '/suppliers' },
+      { icon: ShoppingCart, label: 'Purchasing', path: '/purchasing' },
+    ]
+  },
+  { 
+    icon: Settings, 
+    label: 'Settings', 
+    path: '/settings-group',
+    children: [
+      { icon: Settings, label: 'General', path: '/settings' },
+      { icon: Cpu, label: 'Machines', path: '/machines' },
+      { icon: Layers, label: 'Departments', path: '/departments' },
+      { icon: BarChart3, label: 'Reports', path: '/reports' },
+      { icon: Cpu, label: 'Utilization', path: '/utilization' },
+      { icon: History, label: 'Order History', path: '/order-history' },
+    ]
+  },
 ];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = React.useState(false);
+  const [openSubmenus, setOpenSubmenus] = React.useState<string[]>(['/inventory-group', '/settings-group', '/procurement-group']);
+  const { pathname } = useLocation();
+
+  const toggleSubmenu = (path: string) => {
+    setOpenSubmenus(prev => 
+      prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
+    );
+  };
 
   return (
     <aside className={cn(
@@ -68,28 +99,85 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-4 space-y-1.5 scrollbar-hide py-4">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) => cn(
-              "flex items-center gap-3 px-4 py-3.5 transition-all rounded-2xl font-bold relative group",
-              isActive 
-                ? "text-brand-accent bg-blue-50/50" 
-                : "text-text-muted hover:text-text-main hover:bg-surface"
-            )}
-          >
-            {({ isActive }) => (
-              <>
-                <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={cn("shrink-0 transition-transform group-active:scale-90", collapsed && "mx-auto")} />
-                {!collapsed && <span className="text-xs uppercase tracking-widest">{item.label}</span>}
-                {isActive && !collapsed && (
-                  <div className="absolute right-4 w-1.5 h-1.5 bg-brand-accent rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+        {navItems.map((item) => {
+          const hasChildren = item.children && item.children.length > 0;
+          const isSubmenuOpen = openSubmenus.includes(item.path);
+          const isChildActive = hasChildren && item.children?.some(child => pathname === child.path);
+
+          if (hasChildren) {
+            return (
+              <div key={item.path} className="space-y-1.5">
+                <button
+                  onClick={() => !collapsed && toggleSubmenu(item.path)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-3.5 transition-all rounded-2xl font-bold relative group",
+                    isChildActive 
+                      ? "text-brand-accent bg-blue-50/20" 
+                      : "text-text-muted hover:text-text-main hover:bg-surface"
+                  )}
+                >
+                  <item.icon size={18} strokeWidth={isChildActive ? 2.5 : 2} className={cn("shrink-0 transition-transform group-active:scale-90", collapsed && "mx-auto")} />
+                  {!collapsed && (
+                    <>
+                      <span className="text-xs uppercase tracking-widest flex-1 text-left">{item.label}</span>
+                      <ChevronDown size={14} className={cn("transition-transform duration-300", isSubmenuOpen && "rotate-180")} />
+                    </>
+                  )}
+                </button>
+                
+                {!collapsed && isSubmenuOpen && (
+                  <div className="pl-6 space-y-1 animate-in slide-in-from-top-2 duration-300">
+                    {item.children?.map((child) => (
+                      <NavLink
+                        key={child.path}
+                        to={child.path}
+                        className={({ isActive }) => cn(
+                          "flex items-center gap-3 px-4 py-2.5 transition-all rounded-xl font-bold relative group",
+                          isActive 
+                            ? "text-brand-accent bg-blue-50/50" 
+                            : "text-text-muted hover:text-text-main hover:bg-surface"
+                        )}
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <child.icon size={14} strokeWidth={isActive ? 2.5 : 2} className="shrink-0" />
+                            <span className="text-[10px] uppercase tracking-[0.15em]">{child.label}</span>
+                            {isActive && (
+                              <div className="absolute right-3 w-1 h-1 bg-brand-accent rounded-full" />
+                            )}
+                          </>
+                        )}
+                      </NavLink>
+                    ))}
+                  </div>
                 )}
-              </>
-            )}
-          </NavLink>
-        ))}
+              </div>
+            );
+          }
+
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => cn(
+                "flex items-center gap-3 px-4 py-3.5 transition-all rounded-2xl font-bold relative group",
+                isActive 
+                  ? "text-brand-accent bg-blue-50/50" 
+                  : "text-text-muted hover:text-text-main hover:bg-surface"
+              )}
+            >
+              {({ isActive }) => (
+                <>
+                  <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={cn("shrink-0 transition-transform group-active:scale-90", collapsed && "mx-auto")} />
+                  {!collapsed && <span className="text-xs uppercase tracking-widest">{item.label}</span>}
+                  {isActive && !collapsed && (
+                    <div className="absolute right-4 w-1.5 h-1.5 bg-brand-accent rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                  )}
+                </>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       <div className="p-6">

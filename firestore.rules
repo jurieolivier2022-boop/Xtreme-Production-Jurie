@@ -33,6 +33,10 @@ service cloud.firestore {
 
     // --- Collections ---
 
+    match /_connection_test_/check {
+      allow read: if true;
+    }
+
     match /suppliers/{supplierId} {
       allow list: if isSignedIn();
       allow get: if isSignedIn();

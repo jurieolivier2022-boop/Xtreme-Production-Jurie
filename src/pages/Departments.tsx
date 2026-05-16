@@ -3,6 +3,7 @@ import { Layers, Plus, Trash2, Edit2, Search, X, CheckCircle2 } from 'lucide-rea
 import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Department } from '../types';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { toast } from 'sonner';
 
 const colorOptions = [
@@ -21,6 +22,8 @@ export default function Departments() {
   const { data: departments, loading } = useCollection<Department>('departments');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deptToDelete, setDeptToDelete] = useState<string | null>(null);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -70,15 +73,24 @@ export default function Departments() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     console.log('Button Click: Delete Department', { id });
-    if (window.confirm('Are you sure you want to delete this department?')) {
-      setIsUpdating(id);
-      try {
-        await deleteDocument('departments', id);
-      } finally {
-        setIsUpdating(null);
-      }
+    setDeptToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deptToDelete) return;
+    setIsUpdating(deptToDelete);
+    try {
+      await deleteDocument('departments', deptToDelete);
+      toast.success('Department cell decommissioned.');
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      toast.error('Failed to remove department.');
+    } finally {
+      setIsUpdating(null);
+      setDeptToDelete(null);
     }
   };
 
@@ -252,6 +264,17 @@ export default function Departments() {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Dismantle Department?"
+        message="This will remove the department grouping from the system. Associated machines and jobs will be unlinked from this specific resource center."
+        confirmText="Dismantle"
+        variant="danger"
+        isLoading={!!isUpdating}
+      />
     </div>
   );
 }

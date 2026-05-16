@@ -106,7 +106,8 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
       width: 0,
       length: 0,
       productId: '',
-      materialId: ''
+      materialId: '',
+      machineId: ''
     }]);
   };
 
@@ -119,6 +120,7 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
     const currentItem = newItems[index];
     
     let materialId = updates.materialId ?? currentItem.materialId;
+    let machineId = updates.machineId ?? currentItem.machineId;
     let unitCost = updates.unitCost ?? currentItem.unitCost;
     let description = updates.description ?? currentItem.description;
     let type = updates.type ?? currentItem.type;
@@ -128,6 +130,9 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
     if (updates.type && updates.type !== currentItem.type) {
       originId = '';
       updates.originId = '';
+      updates.description = '';
+      updates.unitCost = 0;
+      updates.machineId = '';
     }
 
     // Logic based on type and originId
@@ -136,6 +141,7 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
         const product = products.find(p => p.id === updates.originId);
         if (product) {
           materialId = product.defaultMaterialId;
+          machineId = product.defaultMachineId;
           description = product.name;
           const material = materials.find(m => m.id === materialId);
           if (material) unitCost = material.costPrice;
@@ -146,6 +152,7 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
           description = material.name;
           unitCost = material.costPrice;
           materialId = material.id;
+          machineId = '';
         }
       } else if (type === 'NCR') {
         const ncr = ncrBooks.find(b => b.id === updates.originId);
@@ -153,23 +160,27 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
           description = ncr.name;
           // For NCR, we might default to the first tier or a base cost
           unitCost = ncr.pricingGrid?.[0]?.sell || 0;
+          machineId = '';
         }
       } else if (type === 'Package') {
         const pkg = packages.find(p => p.id === updates.originId);
         if (pkg) {
           description = pkg.name;
           unitCost = pkg.packagePrice;
+          machineId = '';
         }
       } else if (type === 'Litho') {
         const litho = lithoProducts.find(p => p.id === updates.originId);
         if (litho) {
           description = litho.name;
           unitCost = litho.pricingGrid?.[0]?.sell || 0;
+          machineId = '';
         }
       }
       updates.description = description;
       updates.unitCost = unitCost;
       updates.materialId = materialId;
+      updates.machineId = machineId;
     }
 
     // If material changed (only relevant for Product type usually)
@@ -206,7 +217,7 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
     let computedCost = 0;
 
     if (item.type === 'Product') {
-      const machine = machines.find(m => m.id === product?.defaultMachineId);
+      const machine = machines.find(m => m.id === (item.machineId || product?.defaultMachineId));
       const matCost = material?.costPrice || u;
       let machineCost = 0;
 
@@ -224,10 +235,10 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
 
       if (isArea) {
         computedCost = (sqMmToSqM(w * l) * matCost * q) + machineCost;
-        computedPrice = computedCost * productMarkup;
+        computedPrice = computedCost * activeMarkup;
       } else {
         computedCost = (matCost * q) + machineCost;
-        computedPrice = computedCost * productMarkup;
+        computedPrice = computedCost * activeMarkup;
       }
     } else if (item.type === 'NCR') {
       const ncr = ncrBooks.find(b => b.id === item.originId);
@@ -299,8 +310,11 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
     try {
       const client = clients.find(c => c.id === formData.clientId);
       const doc = generateQuotePDF(formData as Quote, client, company);
-      doc.autoPrint();
-      window.open(doc.output('bloburl'), '_blank');
+      const blobURL = doc.output('bloburl');
+      const win = window.open(blobURL, '_blank');
+      if (!win) {
+        toast.error('Popup blocked. Please allow popups to print.');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -399,7 +413,7 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
       } else {
         const year = new Date().getFullYear();
         const sequence = await getNextSequence(`quotes_${year}`);
-        finalData.quoteNumber = `Quote-${year}-${sequence || Math.floor(Math.random() * 1000)}`;
+        finalData.quoteNumber = `Quote-${year}-${(sequence || 1).toString().padStart(3, '0')}`;
         await createDocument('quotes', finalData as any);
       }
       setShowSuccess(true);
@@ -619,6 +633,30 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
                             {item.type === 'Litho' && lithoProducts.sort((a,b) => a.name.localeCompare(b.name)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             {item.type === 'Package' && packages.sort((a,b) => a.name.localeCompare(b.name)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
+                          {item.type === 'Product' && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <select 
+                                value={item.materialId || ''}
+                                onChange={(e) => updateItem(idx, { materialId: e.target.value })}
+                                className="w-full bg-surface border border-border/40 rounded-xl px-2 py-1.5 text-[9px] font-black uppercase tracking-tight focus:ring-2 focus:ring-brand/10 outline-none transition-all"
+                              >
+                                <option value="">Substrate...</option>
+                                {materials.map(m => (
+                                  <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                              </select>
+                              <select 
+                                value={item.machineId || (products.find(p => p.id === item.originId)?.defaultMachineId) || ''}
+                                onChange={(e) => updateItem(idx, { machineId: e.target.value })}
+                                className="w-full bg-surface border border-border/40 rounded-xl px-2 py-1.5 text-[9px] font-black uppercase tracking-tight focus:ring-2 focus:ring-brand/10 outline-none transition-all"
+                              >
+                                <option value="">Machine...</option>
+                                {machines.map(m => (
+                                  <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                           <input 
                             type="text" 
                             value={item.description || ''}

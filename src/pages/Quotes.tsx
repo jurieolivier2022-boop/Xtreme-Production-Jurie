@@ -2,8 +2,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Plus, Filter, Edit2, Share2, Trash2, Clock, AlertCircle, Briefcase, Mail, MessageCircle, DollarSign, TrendingUp, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection, deleteDocument, updateDocument, createDocument, getNextSequence } from '../lib/firestoreService';
-import { Quote, Client, Job, CompanySettings } from '../types';
+import { Quote, Client, Job, CompanySettings, QuoteItem } from '../types';
 import QuoteModal from '../components/QuoteModal';
+import JobModal from '../components/JobModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { shareViaWhatsApp, shareViaEmail } from '../lib/messagingService';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
@@ -21,10 +23,15 @@ const statusStyles = {
 export default function Quotes() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false);
+  const [jobToCreate, setJobToCreate] = useState<Partial<Job> | null>(null);
 
   const initialClientId = searchParams.get('clientId');
 
@@ -80,15 +87,24 @@ export default function Quotes() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     console.log('Button Click: Delete Quote', { id });
-    if (confirm('Are you sure you want to delete this quote?')) {
-      setIsUpdating(id);
-      try {
-        await deleteDocument('quotes', id);
-      } finally {
-        setIsUpdating(null);
-      }
+    setQuoteToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!quoteToDelete) return;
+    setIsUpdating(quoteToDelete);
+    try {
+      await deleteDocument('quotes', quoteToDelete);
+      toast.success('Quote registry entry purged.');
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      toast.error('Failed to purge quote.');
+    } finally {
+      setIsUpdating(null);
+      setQuoteToDelete(null);
     }
   };
 
@@ -102,43 +118,28 @@ export default function Quotes() {
     }
   };
 
-  const handleCreateJob = async (quote: Quote) => {
-    console.log('Button Click: Convert Quote to Job', { id: quote.id });
+  const handleCreateJob = (quote: Quote) => {
+    console.log('Button Click: Initiate Quote to Job Conversion', { id: quote.id });
     const clientName = getClientName(quote.clientId);
     const productsSummary = quote.items.map(item => item.description).join(', ') || 'Custom Production';
     
-    setIsUpdating(quote.id);
-    try {
-      const year = new Date().getFullYear();
-      const sequence = await getNextSequence(`jobs_${year}`);
-      if (sequence === null) throw new Error("Failed to generate sequence");
-      
-      const jobNumber = `Jobcard-${year}-${sequence.toString()}`;
-      
-      const jobData: Omit<Job, 'id'> = {
-        jobNumber,
-        quoteId: quote.id,
-        clientId: quote.clientId,
-        clientName,
-        productName: productsSummary,
-        stage: 'Prepress',
-        priority: 'Normal',
-        dueDate: Date.now() + (7 * 24 * 60 * 60 * 1000), // Default 1 week
-        artworkStatus: 'Pending',
-        items: quote.items,
-        total: quote.total,
-        profit: quote.profit,
-        createdAt: Date.now(),
-      };
-      
-      await createDocument('jobs', jobData);
-      toast.success(`Production Job ${jobNumber} created for ${clientName}`);
-    } catch (error) {
-      console.error("Error creating job:", error);
-      toast.error("Failed to create job. Please try again.");
-    } finally {
-      setIsUpdating(null);
-    }
+    const initialJobData: Partial<Job> = {
+      quoteId: quote.id,
+      clientId: quote.clientId,
+      clientName,
+      productName: productsSummary,
+      stage: 'Prepress',
+      priority: 'Normal',
+      dueDate: Date.now() + (7 * 24 * 60 * 60 * 1000),
+      artworkStatus: 'Pending',
+      items: quote.items as QuoteItem[],
+      total: quote.total,
+      profit: quote.profit,
+      createdAt: Date.now(),
+    };
+    
+    setJobToCreate(initialJobData);
+    setIsJobModalOpen(true);
   };
 
   if (loading) {
@@ -442,6 +443,28 @@ export default function Quotes() {
         }} 
         quote={selectedQuote} 
         initialClientId={initialClientId}
+      />
+
+      {isJobModalOpen && (
+        <JobModal 
+          isOpen={isJobModalOpen}
+          onClose={() => {
+            setIsJobModalOpen(false);
+            setJobToCreate(null);
+          }}
+          job={jobToCreate as Job}
+        />
+      )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Purge Active Quote?"
+        message="This will permanently delete this quote from the system. Linked analytics will be recalculated. This action is irreversible."
+        confirmText="Purge Quote"
+        variant="danger"
+        isLoading={!!isUpdating}
       />
     </div>
   );

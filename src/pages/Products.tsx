@@ -4,6 +4,7 @@ import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Product, Material, Machine } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -14,6 +15,8 @@ export default function Products() {
   const { data: machines } = useCollection<Machine>('machines');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
@@ -28,15 +31,24 @@ export default function Products() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     console.log('Button Click: Delete Product', { id });
-    if (confirm('Delete this product?')) {
-      setIsUpdating(id);
-      try {
-        await deleteDocument('products', id);
-      } finally {
-        setIsUpdating(null);
-      }
+    setProductToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+    setIsUpdating(productToDelete);
+    try {
+      await deleteDocument('products', productToDelete);
+      toast.success('Product decommissioned from catalog.');
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      toast.error('Failed to remove product.');
+    } finally {
+      setIsUpdating(null);
+      setProductToDelete(null);
     }
   };
 
@@ -150,6 +162,17 @@ export default function Products() {
           onClose={() => setIsModalOpen(false)} 
         />
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Decommission Product?"
+        message="Removing this product from your catalog will prevent it from being selected in new quotes. Production history for this product line will be maintained."
+        confirmText="Decommission"
+        variant="danger"
+        isLoading={!!isUpdating}
+      />
     </div>
   );
 }

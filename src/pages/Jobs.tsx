@@ -5,8 +5,10 @@ import { useCollection, updateDocument, deleteDocument } from '../lib/firestoreS
 import { Job, Client, Department, CompanySettings, Machine, Material } from '../types';
 import JobModal from '../components/JobModal';
 import JobDetailsModal from '../components/JobDetailsModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { shareViaWhatsApp, shareViaEmail } from '../lib/messagingService';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 
 const priorityStyles = {
   Urgent: "bg-red-50 text-red-600 border border-red-100",
@@ -36,6 +38,8 @@ export default function Jobs() {
   const { data: companyList } = useCollection<CompanySettings>('company_settings');
 
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState<string | null>(null);
 
   const company = companyList.find(c => c.id === 'company') || companyList[0];
   
@@ -114,15 +118,24 @@ export default function Jobs() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     console.log('Button Click: Delete Job', { id });
-    if (confirm('Cancel this job?')) {
-      setIsUpdating(id);
-      try {
-        await deleteDocument('jobs', id);
-      } finally {
-        setIsUpdating(null);
-      }
+    setJobToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!jobToDelete) return;
+    setIsUpdating(jobToDelete);
+    try {
+      await deleteDocument('jobs', jobToDelete);
+      toast.success('Production job cancelled and archived.');
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      toast.error('Failed to cancel job.');
+    } finally {
+      setIsUpdating(null);
+      setJobToDelete(null);
     }
   };
 
@@ -131,6 +144,9 @@ export default function Jobs() {
     setEditingJob(job);
     setIsModalOpen(true);
   };
+
+  const liveEditingJob = editingJob ? jobs.find(j => j.id === editingJob.id) : null;
+  const liveViewingJob = viewingJobDetails ? jobs.find(j => j.id === viewingJobDetails.id) : null;
 
   if (loading) {
     return (
@@ -374,7 +390,7 @@ export default function Jobs() {
                       </select>
                     </div>
                   </td>
-                  <td className="px-10 py-8 text-center">
+                  <td className="px-10 py-8 text-center" onClick={(e) => e.stopPropagation()}>
                     {job.artworkStatus === 'Approved' ? (
                       <span className="text-emerald-500 font-black text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
                         <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
@@ -383,10 +399,36 @@ export default function Jobs() {
                         Verified
                       </span>
                     ) : job.artworkStatus === 'Pending' ? (
-                      <span className="text-amber-500 font-black text-[9px] uppercase tracking-[0.2em] bg-amber-50 px-3 py-1.5 rounded-full flex items-center justify-center gap-2 mx-auto w-fit border border-amber-100/50 shadow-sm">
-                        <Clock size={10} strokeWidth={3} className="animate-pulse" />
-                        In-Review
-                      </span>
+                      <div className="flex flex-col items-center gap-3 mx-auto w-fit">
+                        <span className="text-amber-500 font-black text-[9px] uppercase tracking-[0.2em] bg-amber-50 px-3 py-1.5 rounded-full flex items-center justify-center gap-2 border border-amber-100/50 shadow-sm">
+                          <Clock size={10} strokeWidth={3} className="animate-pulse" />
+                          In-Review
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const client = clients.find(c => c.id === job.clientId);
+                              if (client) shareViaWhatsApp('artwork', job, client, company);
+                            }}
+                            title="Share Artwork Proof via WhatsApp"
+                            className="p-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
+                          >
+                            <MessageCircle size={12} strokeWidth={2.5} />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const client = clients.find(c => c.id === job.clientId);
+                              if (client) shareViaEmail('artwork', job, client, company);
+                            }}
+                            title="Share Artwork Proof via Email"
+                            className="p-2 bg-brand/5 text-brand border border-brand/10 rounded-lg hover:bg-brand hover:text-white transition-all shadow-sm"
+                          >
+                            <Mail size={12} strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       <span className="text-text-light font-black opacity-30">—</span>
                     )}
@@ -475,13 +517,13 @@ export default function Jobs() {
       <JobModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        job={editingJob}
+        job={liveEditingJob}
       />
 
-      {isDetailsOpen && viewingJobDetails && (
+      {isDetailsOpen && liveViewingJob && (
         <JobDetailsModal 
-          job={viewingJobDetails}
-          clientId={viewingJobDetails.clientId}
+          job={liveViewingJob}
+          clientId={liveViewingJob.clientId}
           clients={clients}
           departments={departments}
           machines={machines}
@@ -494,6 +536,17 @@ export default function Jobs() {
           }}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Cease Production?"
+        message="This will immediately halt and cancel this production job. Historical logs for this job will be archived, but it will be removed from active workflows."
+        confirmText="Cancel Job"
+        variant="danger"
+        isLoading={!!isUpdating}
+      />
     </div>
   );
 }

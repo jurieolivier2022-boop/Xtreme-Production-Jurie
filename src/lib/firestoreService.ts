@@ -47,15 +47,52 @@ interface FirestoreErrorInfo {
   }
 }
 
+/**
+ * Safely stringifies an object that might contain circular references.
+ * Improved implementation to be more robust.
+ */
+function safeJsonStringify(obj: any) {
+  try {
+    const seen = new WeakSet();
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular]';
+        }
+        seen.add(value);
+      }
+      return value;
+    }, 2);
+  } catch (e) {
+    try {
+      // Fallback for objects that might throw on property access
+      return String(obj);
+    } catch (e2) {
+      return '[Unstringifiable Object]';
+    }
+  }
+}
+
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  // Extract only needed properties from error to avoid serializing complex Firebase objects
+  const errorMessage = error instanceof Error 
+    ? error.message 
+    : (error && typeof error === 'object' && 'message' in error)
+      ? String((error as any).message)
+      : String(error);
+
+  const errorCode = (error && typeof error === 'object' && 'code' in error)
+    ? String((error as any).code)
+    : undefined;
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
+      userId: auth.currentUser?.uid ?? null,
+      email: auth.currentUser?.email ?? null,
+      emailVerified: auth.currentUser?.emailVerified ?? null,
+      isAnonymous: auth.currentUser?.isAnonymous ?? null,
+      tenantId: auth.currentUser?.tenantId ?? null,
       providerInfo: auth.currentUser?.providerData?.map(provider => ({
         providerId: provider.providerId,
         email: provider.email,
@@ -64,17 +101,21 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  
+  // Use a safer stringify for log output to ensure we don't crash the error handler itself
+  const safeErrInfo = safeJsonStringify(errInfo);
+  
+  // Log a simplified version first to console to be safe
+  console.error(`Firestore Error [${operationType}] at ${path}:`, errorMessage, errorCode ? `(Code: ${errorCode})` : '');
+  
+  // Only throw the stringified version if we really have to (for system diagnosis)
+  throw new Error(safeErrInfo);
 }
 
 export function useCollection<T>(collectionPath: string, constraints: QueryConstraint[] = []) {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-
-  // Memoize constraints string to avoid unnecessary re-subscriptions
-  const constraintsKey = JSON.stringify(constraints);
 
   useEffect(() => {
     let isMounted = true;
@@ -89,10 +130,11 @@ export function useCollection<T>(collectionPath: string, constraints: QueryConst
         setData(docs);
         setLoading(false);
         setError(null);
-      }, (err) => {
+      }, (err: any) => {
         if (!isMounted) return;
-        console.error(`Subscription error for ${collectionPath}:`, err);
-        setError(err);
+        const msg = err?.message || String(err);
+        console.error(`Subscription error for ${collectionPath}:`, msg);
+        setError(new Error(msg));
         setLoading(false);
       });
       
@@ -106,7 +148,8 @@ export function useCollection<T>(collectionPath: string, constraints: QueryConst
         setLoading(false);
       }
     }
-  }, [collectionPath, constraintsKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collectionPath, constraints.length]); 
 
   return { data, loading, error };
 }

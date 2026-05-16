@@ -8,6 +8,7 @@ import { Client, Quote, Job } from '../types';
 import QuoteModal from '../components/QuoteModal';
 import { motion, AnimatePresence } from 'motion/react';
 import JobModal from '../components/JobModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { toast } from 'sonner';
 
 export default function Clients() {
@@ -15,6 +16,8 @@ export default function Clients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<string | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [historyClient, setHistoryClient] = useState<Client | null>(null);
   const [viewingQuote, setViewingQuote] = useState<Quote | null>(null);
@@ -35,15 +38,25 @@ export default function Clients() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     console.log('Button Click: Delete Client', { id });
-    if (confirm('Delete this client?')) {
-      setIsUpdating(id);
-      try {
-        await deleteDocument('clients', id);
-      } finally {
-        setIsUpdating(null);
-      }
+    setClientToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!clientToDelete) return;
+    
+    setIsUpdating(clientToDelete);
+    try {
+      await deleteDocument('clients', clientToDelete);
+      toast.success('Client registry entry removed.');
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      toast.error('Failed to remove client.');
+    } finally {
+      setIsUpdating(null);
+      setClientToDelete(null);
     }
   };
 
@@ -274,6 +287,17 @@ export default function Clients() {
           onClose={() => setViewingJob(null)} 
         />
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Purge Client Record?"
+        message="This will permanently remove the client from the central registry. Existing quotes and jobs associated with this client will remain in the database but may lose their linked identity."
+        confirmText="Purge Record"
+        variant="danger"
+        isLoading={!!isUpdating}
+      />
     </div>
   );
 }

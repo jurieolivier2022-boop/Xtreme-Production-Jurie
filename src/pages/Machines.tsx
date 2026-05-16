@@ -3,11 +3,14 @@ import { Cpu, Edit2, Trash2, Zap, AlertTriangle, Plus } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Machine } from '../types';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { toast } from 'sonner';
 
 export default function Machines() {
   const { data: machines, loading } = useCollection<Machine>('machines');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [machineToDelete, setMachineToDelete] = useState<string | null>(null);
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
@@ -17,34 +20,25 @@ export default function Machines() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     console.log('Button Click: Delete Machine', { id });
-    toast.custom((t) => (
-      <div className="bg-white p-6 rounded-3xl shadow-2xl border border-border min-w-[320px] animate-in slide-in-from-bottom-5">
-        <h3 className="text-sm font-black uppercase tracking-tight text-text-main mb-2">Delete Machine?</h3>
-        <p className="text-xs text-text-light font-bold mb-6">This action cannot be undone. All production logs will be preserved but the asset will be removed.</p>
-        <div className="flex gap-3">
-          <button onClick={() => toast.dismiss(t)} className="flex-1 py-3 bg-surface text-[10px] font-black uppercase tracking-widest rounded-xl border border-border">Cancel</button>
-          <button 
-            onClick={async () => {
-              toast.dismiss(t);
-              setIsUpdating(id);
-              try {
-                await deleteDocument('machines', id);
-                toast.success('Machine record purged from registry.');
-              } catch (error) {
-                toast.error('Failed to purge record.');
-              } finally {
-                setIsUpdating(null);
-              }
-            }} 
-            className="flex-1 py-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-red-100"
-          >
-            Purge Assets
-          </button>
-        </div>
-      </div>
-    ));
+    setMachineToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!machineToDelete) return;
+    setIsUpdating(machineToDelete);
+    try {
+      await deleteDocument('machines', machineToDelete);
+      toast.success('Machine record purged from registry.');
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      toast.error('Failed to purge record.');
+    } finally {
+      setIsUpdating(null);
+      setMachineToDelete(null);
+    }
   };
 
   if (loading) {
@@ -126,6 +120,28 @@ export default function Machines() {
               </div>
 
               <div className="flex flex-col gap-2 p-3 bg-gray-50/50 rounded-xl border border-border border-dashed">
+                <div className="flex justify-between items-center text-[10px] font-black text-text-light uppercase tracking-widest mb-1 pb-1 border-b border-border/10">
+                   <span>Service Log</span>
+                   <span className="text-brand">SA-01</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                   <div>
+                      <span className="text-[7px] font-black text-text-light uppercase tracking-[0.2em] block mb-0.5">Last Check</span>
+                      <span className="text-[10px] font-black text-text-main uppercase">{machine.lastMaintenanceDate ? new Date(machine.lastMaintenanceDate).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : 'Never'}</span>
+                   </div>
+                   <div className="text-right">
+                      <span className="text-[7px] font-black text-text-light uppercase tracking-[0.2em] block mb-0.5">Next Due</span>
+                      <span className={cn(
+                        "text-[10px] font-black uppercase",
+                        machine.nextMaintenanceDate && machine.nextMaintenanceDate < Date.now() ? "text-red-500" : "text-emerald-600"
+                      )}>
+                        {machine.nextMaintenanceDate ? new Date(machine.nextMaintenanceDate).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : 'Pending'}
+                      </span>
+                   </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 p-3 bg-gray-50/50 rounded-xl border border-border border-dashed">
                 <div className="flex justify-between items-center text-[10px] font-black text-text-light uppercase tracking-widest">
                    <span>Capacity Load</span>
                    <span>0%</span>
@@ -159,6 +175,17 @@ export default function Machines() {
           onClose={() => setIsModalOpen(false)} 
         />
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Purge Machine Specification?"
+        message="This action cannot be undone. All historical production data linked to this asset will remain in logs, but the machine will be removed from future routing."
+        confirmText="Purge Machine"
+        variant="danger"
+        isLoading={!!isUpdating}
+      />
     </div>
   );
 }
@@ -171,8 +198,19 @@ function MachineModal({ machine, onClose }: { machine: Machine | null, onClose: 
     maxWidth: machine?.maxWidth || 0,
     hourlyRate: machine?.hourlyRate || 0,
     costUnit: machine?.costUnit || 'hr',
-    status: machine?.status || 'Active'
+    status: machine?.status || 'Active',
+    lastMaintenanceDate: machine?.lastMaintenanceDate || 0,
+    nextMaintenanceDate: machine?.nextMaintenanceDate || 0
   });
+
+  const formatDateLabel = (timestamp?: number) => {
+    if (!timestamp) return 'No schedule';
+    return new Date(timestamp).toLocaleDateString('en-ZA', { 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,8 +256,8 @@ function MachineModal({ machine, onClose }: { machine: Machine | null, onClose: 
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Operating Rate (R)</label>
-                <input required type="number" value={formData.hourlyRate} onChange={(e) => setFormData({ ...formData, hourlyRate: Number(e.target.value) })} className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand" />
+                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Internal Cost (R)</label>
+                <input type="number" step="0.01" value={formData.costPerHour || 0} onChange={(e) => setFormData({ ...formData, costPerHour: Number(e.target.value) })} className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand" />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Billing Unit</label>
@@ -229,6 +267,35 @@ function MachineModal({ machine, onClose }: { machine: Machine | null, onClose: 
                   <option value="page">Per Page</option>
                   <option value="item">Per Item</option>
                 </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Billing Rate (R)</label>
+                <input required type="number" step="0.01" value={formData.hourlyRate} onChange={(e) => setFormData({ ...formData, hourlyRate: Number(e.target.value) })} className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand" />
+              </div>
+              <div className="flex items-end">
+                <p className="text-[9px] text-text-light font-bold italic mb-4">Markup: {formData.hourlyRate && formData.costPerHour ? (((formData.hourlyRate / formData.costPerHour) - 1) * 100).toFixed(0) : 0}%</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Last Maintenance</label>
+                <input 
+                  type="date" 
+                  value={formData.lastMaintenanceDate ? new Date(formData.lastMaintenanceDate).toISOString().split('T')[0] : ''} 
+                  onChange={(e) => setFormData({ ...formData, lastMaintenanceDate: e.target.value ? new Date(e.target.value).getTime() : 0 })} 
+                  className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand" 
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Next Scheduled</label>
+                <input 
+                  type="date" 
+                  value={formData.nextMaintenanceDate ? new Date(formData.nextMaintenanceDate).toISOString().split('T')[0] : ''} 
+                  onChange={(e) => setFormData({ ...formData, nextMaintenanceDate: e.target.value ? new Date(e.target.value).getTime() : 0 })} 
+                  className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand" 
+                />
               </div>
             </div>
           </div>
