@@ -1,12 +1,10 @@
-import React from 'react';
-import { MoreVertical, Calendar, User, Package, Briefcase, Filter, Search, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { MoreVertical, Calendar, User, Package, Briefcase, Filter, Search, AlertCircle, CheckCircle2, Clock, Check } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection, updateDocument } from '../lib/firestoreService';
 import { Job, JobStage, Department, Client, Machine, Material, JobPriority } from '../types';
 import JobDetailsModal from '../components/JobDetailsModal';
 import { AnimatePresence, motion } from 'motion/react';
-
-const COLUMNS: JobStage[] = ['Prepress', 'Printing', 'Laminating', 'Finishing', 'Embroidery', 'Screenprinting', 'Quality Check', 'Ready'];
 
 export default function ProductionBoard() {
   const { data: jobs, loading: jobsLoading } = useCollection<Job>('jobs');
@@ -26,37 +24,50 @@ export default function ProductionBoard() {
     e.dataTransfer.setData('jobId', id);
   };
 
-  const onDrop = async (e: React.DragEvent, newStage: JobStage) => {
+  const onDrop = async (e: React.DragEvent, newDeptId: string) => {
     const jobId = e.dataTransfer.getData('jobId');
     if (!jobId) return;
     
-    console.log('Action: Drop Job', { id: jobId, newStage });
+    console.log('Action: Drop Job', { id: jobId, newDeptId });
     const job = jobs.find(j => j.id === jobId);
     if (job) {
       setIsUpdating(jobId);
       try {
-        await updateDocument('jobs', jobId, { stage: newStage });
+        await updateDocument('jobs', jobId, { departmentId: newDeptId });
       } catch (error) {
-        console.error('Error updating job stage:', error);
+        console.error('Error updating job department:', error);
       } finally {
         setIsUpdating(null);
       }
     }
   };
 
-  const moveToNextStage = async (e: React.MouseEvent, job: Job) => {
+  const moveToNextDeptOrComplete = async (e: React.MouseEvent, job: Job, currentDeptIdx: number) => {
     e.stopPropagation();
-    const currentIndex = COLUMNS.indexOf(job.stage);
-    if (currentIndex < COLUMNS.length - 1) {
-      const nextStage = COLUMNS[currentIndex + 1];
-      setIsUpdating(job.id);
-      try {
-        await updateDocument('jobs', job.id, { stage: nextStage });
-      } catch (error) {
-        console.error('Error advancing job:', error);
-      } finally {
-        setIsUpdating(null);
+    setIsUpdating(job.id);
+    try {
+      if (currentDeptIdx < departments.length - 1) {
+        const nextDept = departments[currentDeptIdx + 1];
+        await updateDocument('jobs', job.id, { departmentId: nextDept.id });
+      } else {
+        await updateDocument('jobs', job.id, { status: 'Completed' });
       }
+    } catch (error) {
+      console.error('Error advancing job:', error);
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  const markAsCompleted = async (e: React.MouseEvent, job: Job) => {
+    e.stopPropagation();
+    setIsUpdating(job.id);
+    try {
+      await updateDocument('jobs', job.id, { status: 'Completed' });
+    } catch (error) {
+      console.error('Error completing job:', error);
+    } finally {
+      setIsUpdating(null);
     }
   };
 
@@ -69,6 +80,8 @@ export default function ProductionBoard() {
   }
 
   const filteredJobs = jobs.filter(j => {
+    if (j.status === 'Completed') return false; // Hide completed jobs from board
+    
     const matchesDept = selectedDeptId === 'all' || j.departmentId === selectedDeptId;
     const matchesSearch = !searchQuery || 
       j.jobNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -144,32 +157,46 @@ export default function ProductionBoard() {
       </header>
 
       <div className="flex-1 flex gap-6 overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent pr-4">
-        {COLUMNS.map((col, idx) => {
-          const colJobs = filteredJobs.filter(j => j.stage === col);
-          const stageProgress = ((idx + 1) / COLUMNS.length) * 100;
+        {departments.map((dept, idx) => {
+          const colJobs = filteredJobs.filter(j => j.departmentId === dept.id || (!j.departmentId && idx === 0)); // Put unassigned in first column
+          const stageProgress = ((idx + 1) / departments.length) * 100;
 
           return (
             <div 
-              key={col} 
+              key={dept.id} 
               onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => onDrop(e, col)}
+              onDrop={(e) => onDrop(e, dept.id)}
               className="flex flex-col gap-5 min-w-[320px] max-w-[320px] bg-paper/30 border border-border/30 rounded-[2.5rem] p-5 relative overflow-hidden group/col animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
               style={{ animationDelay: `${idx * 0.1}s` }}
             >
               <div className="absolute top-0 left-0 right-0 h-1 bg-surface opacity-50">
                 <div 
-                  className="h-full bg-brand/30 transition-all duration-1000 ease-out" 
+                  className={cn("h-full transition-all duration-1000 ease-out", 
+                    dept.color === 'Red' ? 'bg-red-500' :
+                    dept.color === 'Blue' ? 'bg-blue-500' :
+                    dept.color === 'Green' ? 'bg-green-500' :
+                    dept.color === 'Orange' ? 'bg-orange-500' :
+                    dept.color === 'Purple' ? 'bg-purple-500' :
+                    'bg-brand/30'
+                  )}
                   style={{ width: `${stageProgress}%` }}
                 />
               </div>
 
               <div className="flex items-center justify-between px-2 relative z-10 pt-2">
                 <div className="flex flex-col">
-                  <h3 className="text-[10px] font-black text-text-light tracking-[0.3em] uppercase">{col}</h3>
+                  <h3 className="text-[10px] font-black text-text-light tracking-[0.3em] uppercase">{dept.name}</h3>
                   <span className="text-[16px] font-black text-text-main tracking-tighter tabular-nums mt-1">{colJobs.length} <span className="text-[9px] text-text-light uppercase tracking-widest font-bold ml-1 opacity-40">Orders</span></span>
                 </div>
-                <div className="w-9 h-9 rounded-xl bg-surface border border-border/50 flex items-center justify-center group-hover/col:scale-110 transition-all duration-500 shadow-sm">
-                  <Briefcase size={14} className="text-brand-accent" />
+                <div className={cn("w-9 h-9 rounded-xl border flex items-center justify-center group-hover/col:scale-110 transition-all duration-500 shadow-sm",
+                  dept.color === 'Red' ? 'bg-red-50 text-red-600 border-red-100' :
+                  dept.color === 'Blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                  dept.color === 'Green' ? 'bg-green-50 text-green-600 border-green-100' :
+                  dept.color === 'Orange' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                  dept.color === 'Purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                  'bg-surface text-brand-accent border-border/50'
+                )}>
+                  <Briefcase size={14} className="currentColor" />
                 </div>
               </div>
 
@@ -181,7 +208,6 @@ export default function ProductionBoard() {
                   </div>
                 ) : (
                   colJobs.map((job) => {
-                    const dept = departments.find(d => d.id === job.departmentId);
                     const dueStatus = getDueDateStatus(job.dueDate);
                     const DueIcon = dueStatus.icon;
 
@@ -218,18 +244,14 @@ export default function ProductionBoard() {
                               <span className={cn("text-[9px] font-black uppercase tracking-widest", dueStatus.color)}>{dueStatus.label}</span>
                             </div>
                           </div>
-                          {dept && (
-                            <div className={cn("px-2.5 py-1 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm border border-transparent", 
-                              dept.color === 'Red' ? 'bg-red-50 text-red-600 border-red-100' :
-                              dept.color === 'Blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                              dept.color === 'Green' ? 'bg-green-50 text-green-600 border-green-100' :
-                              dept.color === 'Orange' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                              dept.color === 'Purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                              'bg-gray-50 text-gray-600 border-gray-100'
-                            )}>
-                              {dept.name}
-                            </div>
-                          )}
+                          
+                          <button
+                            onClick={(e) => markAsCompleted(e, job)}
+                            title="Mark as Completed"
+                            className="p-1.5 rounded-lg text-text-light hover:text-emerald-600 hover:bg-emerald-50 transition-colors opacity-0 group-hover/card:opacity-100"
+                          >
+                            <Check size={14} />
+                          </button>
                         </div>
                         
                         <div className="space-y-1 mb-4">
@@ -280,19 +302,12 @@ export default function ProductionBoard() {
                               </span>
                            </div>
                            
-                           {col !== 'Ready' ? (
-                             <button
-                               onClick={(e) => moveToNextStage(e, job)}
-                               className="px-2.5 py-1 bg-surface hover:bg-brand hover:text-white rounded-lg text-[8px] font-black uppercase tracking-widest border border-border shadow-sm transition-all flex items-center gap-1.5"
-                             >
-                               Move Next
-                             </button>
-                           ) : (
-                             <div className="flex items-center gap-1.5 grayscale opacity-40">
-                                <User size={10} />
-                                <span className="text-[8px] font-black uppercase tracking-widest">Completed</span>
-                             </div>
-                           )}
+                           <button
+                             onClick={(e) => moveToNextDeptOrComplete(e, job, idx)}
+                             className="px-2.5 py-1 bg-surface hover:bg-brand hover:text-white rounded-lg text-[8px] font-black uppercase tracking-widest border border-border shadow-sm transition-all flex items-center gap-1.5"
+                           >
+                             {idx < departments.length - 1 ? 'Move Next' : 'Complete'}
+                           </button>
                         </div>
                       </motion.div>
                     );

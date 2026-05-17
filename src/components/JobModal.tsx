@@ -180,12 +180,15 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
         });
         setItems(job.items || []);
       } else {
+        const designingDept = departments.find(d => d.name.toLowerCase() === 'designing') || departments[0];
         setFormData({
           jobNumber: 'Pending...',
           clientId: '',
           clientName: '',
           productName: '',
+          departmentId: designingDept?.id || '',
           stage: 'Prepress',
+          status: 'Active',
           priority: 'Normal',
           dueDate: Date.now() + (7 * 24 * 60 * 60 * 1000),
           artworkStatus: 'Pending',
@@ -395,14 +398,37 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
       computedPrice = computedCost * materialMarkup;
     }
 
-    if ('totalPrice' in updates) {
-      item.totalPrice = updates.totalPrice!;
-      item.totalCost = item.totalPrice / activeMarkup;
-    } else if ('totalCost' in updates) {
+    if ('totalCost' in updates && !('basePrice' in updates) && !('totalPrice' in updates)) {
       item.totalCost = updates.totalCost!;
     } else {
-      item.totalPrice = computedPrice;
-      item.totalCost = computedCost;
+      if ('basePrice' in updates) {
+        item.basePrice = updates.basePrice!;
+        item.totalCost = item.basePrice / activeMarkup;
+      } else if (!('discountValue' in updates || 'discountType' in updates)) {
+        item.basePrice = computedPrice;
+        item.totalCost = computedCost;
+      }
+      
+      if ('totalPrice' in updates && !('basePrice' in updates)) {
+        item.basePrice = updates.totalPrice!;
+        item.totalCost = item.basePrice / activeMarkup;
+      }
+
+      if (item.basePrice === undefined) {
+        item.basePrice = item.totalPrice ?? computedPrice;
+      }
+
+      let discountAmount = 0;
+      const base = item.basePrice;
+      if (item.discountValue) {
+        if (item.discountType === 'amount') {
+          discountAmount = item.discountValue;
+        } else {
+          discountAmount = base * (item.discountValue / 100);
+        }
+      }
+      
+      item.totalPrice = Math.max(0, base - discountAmount);
     }
     
     setItems(newItems);
@@ -568,8 +594,8 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 bg-text-main/20 backdrop-blur-sm overflow-y-auto pt-10 sm:pt-20">
-      <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 relative mb-10 sm:mb-20 printable-content">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-text-main/20 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-6xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 relative printable-content">
         <div className="p-8 border-b border-border flex items-center justify-between shrink-0 no-print">
           <div>
             <h2 className="text-2xl font-bold text-text-main tracking-tight">{job ? 'Edit Job Card' : 'Direct Job Entry'}</h2>
@@ -1291,31 +1317,57 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="flex flex-col border border-brand/20 rounded-lg p-2 bg-brand/5">
+                        <td className="px-4 py-4 min-w-[140px]">
+                          <div className="flex flex-col border border-brand/20 rounded-lg p-2 bg-brand/5 gap-1.5">
                              <div className="flex items-center gap-1 mb-1 border-b border-brand/10 pb-1">
-                               <span className="text-[8px] font-black text-brand italic">UNIT</span>
+                               <span className="text-[8px] font-black text-brand italic">RATE</span>
                                <input 
                                   type="number" 
                                   step="0.01"
-                                  value={unitSellPrice || 0}
+                                  value={((item.basePrice ?? item.totalPrice ?? 0) / (isArea ? sqMmToSqM((item.width || 0) * (item.length || 0)) * itemQuantity : itemQuantity)) || 0}
                                   onChange={(e) => {
                                     const val = Number(e.target.value);
                                     const factor = isArea ? (sqMmToSqM((item.width || 0) * (item.length || 0)) * itemQuantity) : itemQuantity;
-                                    updateItem(idx, { totalPrice: val * factor });
+                                    updateItem(idx, { basePrice: val * factor });
                                   }}
                                   className="w-full bg-transparent border-none p-0 focus:ring-0 text-[10px] font-bold text-brand tabular-nums text-right"
                                />
                             </div>
+                            
                             <div className="flex items-center gap-1">
-                               <span className="text-[9px] font-black text-brand">R</span>
+                               <span className="text-[8px] font-black text-brand opacity-60">BASE:</span>
                                <input 
                                   type="number" 
                                   step="0.01"
-                                  value={item.totalPrice || 0}
-                                  onChange={(e) => updateItem(idx, { totalPrice: Number(e.target.value) })}
-                                  className="w-full bg-transparent border-none p-0 focus:ring-0 text-xs font-black text-brand tabular-nums text-right"
+                                  value={item.basePrice ?? item.totalPrice ?? 0}
+                                  onChange={(e) => updateItem(idx, { basePrice: Number(e.target.value) })}
+                                  className="w-full bg-transparent border-none p-0 focus:ring-0 text-[10px] font-black text-brand opacity-80 tabular-nums text-right"
                                />
+                            </div>
+                            
+                            <div className="flex items-center gap-1 mt-0.5 bg-white/50 border border-brand/10 rounded px-1 w-full">
+                              <select 
+                                value={item.discountType || 'percentage'}
+                                onChange={(e) => updateItem(idx, { discountType: e.target.value as any })}
+                                className="bg-transparent text-[8px] font-bold text-text-light uppercase border-none p-0 focus:ring-0 shrink-0 outline-none w-10"
+                              >
+                                <option value="percentage">%</option>
+                                <option value="amount">R-</option>
+                              </select>
+                              <input
+                                type="number"
+                                placeholder="Disc"
+                                value={item.discountValue || ''}
+                                onChange={(e) => updateItem(idx, { discountValue: e.target.value === '' ? 0 : Number(e.target.value) })}
+                                className="w-full bg-transparent border-none p-0 focus:ring-0 text-[10px] text-right text-amber-600 font-bold placeholder:text-text-light/30 tabular-nums"
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-1 mt-1 pt-1 border-t border-brand/20">
+                               <span className="text-[10px] font-black text-brand">R</span>
+                               <div className="w-full text-xs font-black text-brand tabular-nums text-right">
+                                 {item.totalPrice?.toFixed(2) || '0.00'}
+                               </div>
                             </div>
                           </div>
                         </td>

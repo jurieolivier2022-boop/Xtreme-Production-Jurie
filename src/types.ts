@@ -37,6 +37,8 @@ export interface Material {
   supplierId: string;
   thickness?: string;
   materialType?: string;
+  printMethods?: string[];
+  inkTypes?: string[];
   printingConsiderations?: string;
 }
 
@@ -90,6 +92,9 @@ export interface QuoteItem {
   quantity: number;
   unitCost: number;
   totalCost: number;
+  discountType?: 'percentage' | 'amount';
+  discountValue?: number;
+  basePrice?: number;
   totalPrice: number;
 }
 
@@ -249,6 +254,7 @@ export interface Job {
   total?: number;
   profit?: number;
   stage: JobStage;
+  status?: 'Active' | 'Completed';
   priority: JobPriority;
   dueDate: number;
   assignedMachineId?: string;

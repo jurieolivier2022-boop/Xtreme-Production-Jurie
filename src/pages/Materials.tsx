@@ -187,6 +187,7 @@ export default function Materials() {
       {viewingMaterial && (
         <MaterialViewModal 
           material={viewingMaterial} 
+          suppliers={suppliers}
           onClose={() => setViewingMaterial(null)} 
         />
       )}
@@ -218,8 +219,13 @@ function MaterialModal({ material, suppliers, onClose }: { material: Material | 
     supplierId: material?.supplierId || '',
     thickness: material?.thickness || '',
     materialType: material?.materialType || '',
+    printMethods: material?.printMethods || [],
+    inkTypes: material?.inkTypes || [],
     printingConsiderations: material?.printingConsiderations || '',
   });
+
+  const PRINT_METHODS = ['Digital', 'Offset', 'Screen', 'Flexo', 'Litho'];
+  const INK_TYPES = ['UV', 'Solvent', 'Eco-Solvent', 'Water-based', 'Latex', 'Dye-Sub'];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -416,40 +422,61 @@ function MaterialModal({ material, suppliers, onClose }: { material: Material | 
                 placeholder="Notes on ink limits, profiles, or drying times..."
               />
             </div>
-          </div>
 
-          <div className="space-y-6 pt-6 border-t border-border/30">
-            <h4 className="text-[10px] font-black text-text-light uppercase tracking-[0.3em]">Detailed Specifications</h4>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3">Thickness (e.g. 80 micron)</label>
-                <input 
-                  type="text"
-                  value={formData.thickness}
-                  onChange={(e) => setFormData({ ...formData, thickness: e.target.value })}
-                  className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-bold focus:outline-none focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent"
-                  placeholder="e.g. 100μ"
-                />
+            <div className="space-y-4">
+              <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3 mt-4">Compatible Print Methods</label>
+              <div className="flex flex-wrap gap-2">
+                {PRINT_METHODS.map(method => (
+                  <button
+                    key={method}
+                    type="button"
+                    onClick={() => {
+                      const methods = formData.printMethods || [];
+                      setFormData({
+                        ...formData,
+                        printMethods: methods.includes(method) 
+                          ? methods.filter(m => m !== method)
+                          : [...methods, method]
+                      })
+                    }}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                      (formData.printMethods || []).includes(method)
+                        ? "bg-brand-accent text-white"
+                        : "bg-surface text-text-light border border-border hover:border-brand-accent/30"
+                    )}
+                  >
+                    {method}
+                  </button>
+                ))}
               </div>
-              <div>
-                <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3">Substrate Type</label>
-                <input 
-                  type="text"
-                  value={formData.materialType}
-                  onChange={(e) => setFormData({ ...formData, materialType: e.target.value })}
-                  className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-bold focus:outline-none focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent"
-                  placeholder="e.g. Monomeric PVC"
-                />
+
+              <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3 mt-6">Recommended Ink Types</label>
+              <div className="flex flex-wrap gap-2">
+                {INK_TYPES.map(ink => (
+                  <button
+                    key={ink}
+                    type="button"
+                    onClick={() => {
+                      const inks = formData.inkTypes || [];
+                      setFormData({
+                        ...formData,
+                        inkTypes: inks.includes(ink) 
+                          ? inks.filter(i => i !== ink)
+                          : [...inks, ink]
+                      })
+                    }}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                      (formData.inkTypes || []).includes(ink)
+                        ? "bg-emerald-500 text-white"
+                        : "bg-surface text-text-light border border-border hover:border-emerald-500/30"
+                    )}
+                  >
+                    {ink}
+                  </button>
+                ))}
               </div>
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3">Printing Considerations</label>
-              <textarea 
-                value={formData.printingConsiderations}
-                onChange={(e) => setFormData({ ...formData, printingConsiderations: e.target.value })}
-                className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-bold focus:outline-none focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent h-24 resize-none"
-                placeholder="Notes on ink limits, profiles, or drying times..."
-              />
             </div>
           </div>
 
@@ -477,7 +504,8 @@ function MaterialModal({ material, suppliers, onClose }: { material: Material | 
   );
 }
 
-function MaterialViewModal({ material, onClose }: { material: Material, onClose: () => void }) {
+function MaterialViewModal({ material, suppliers, onClose }: { material: Material, suppliers: Supplier[], onClose: () => void }) {
+  const supplier = suppliers.find(s => s.id === material.supplierId);
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 bg-text-main/20 backdrop-blur-sm overflow-y-auto pt-10 sm:pt-20">
       <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in duration-200 relative mb-10 sm:mb-20">
@@ -524,6 +552,15 @@ function MaterialViewModal({ material, onClose }: { material: Material, onClose:
                   <span className="text-[8px] font-black text-text-light uppercase tracking-widest block mb-2 opacity-50">Substrate Type</span>
                   <p className="text-xs font-black text-text-main uppercase tracking-tight">{material.materialType || 'Not Specified'}</p>
                 </div>
+                <div className="p-5 bg-surface rounded-2xl border border-border/50 col-span-2">
+                  <span className="text-[8px] font-black text-text-light uppercase tracking-widest block mb-2 opacity-50">Supplier</span>
+                  {supplier ? (
+                    <div>
+                      <p className="text-xs font-black text-text-main uppercase tracking-tight mb-1">{supplier.name}</p>
+                      <p className="text-[10px] font-bold text-text-light">{supplier.contactPerson} &bull; {supplier.email || supplier.phone}</p>
+                    </div>
+                  ) : <p className="text-xs font-bold text-text-light italic">No Supplier Selected</p>}
+                </div>
               </div>
             </div>
 
@@ -532,6 +569,28 @@ function MaterialViewModal({ material, onClose }: { material: Material, onClose:
                 <Beaker size={14} className="text-brand-accent" />
                 Printing & Production Notes
               </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                 <div className="p-5 bg-surface rounded-2xl border border-border/50">
+                    <span className="text-[8px] font-black text-text-light uppercase tracking-widest block mb-2 opacity-50">Compatible Print Methods</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {material.printMethods?.length ? material.printMethods.map(m => (
+                        <span key={m} className="px-2 py-1 bg-brand-accent text-white text-[9px] font-black uppercase tracking-widest rounded-lg">
+                          {m}
+                        </span>
+                      )) : <span className="text-[9px] font-bold text-text-light uppercase italic">Not Specified</span>}
+                    </div>
+                 </div>
+                 <div className="p-5 bg-surface rounded-2xl border border-border/50">
+                    <span className="text-[8px] font-black text-text-light uppercase tracking-widest block mb-2 opacity-50">Recommended Inks</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {material.inkTypes?.length ? material.inkTypes.map(i => (
+                        <span key={i} className="px-2 py-1 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg">
+                          {i}
+                        </span>
+                      )) : <span className="text-[9px] font-bold text-text-light uppercase italic">Not Specified</span>}
+                    </div>
+                 </div>
+              </div>
               <div className="p-6 bg-blue-50/30 rounded-3xl border border-brand-accent/10">
                 <p className="text-[11px] font-bold text-text-muted leading-relaxed italic whitespace-pre-wrap">
                   {material.printingConsiderations || 'No specific printing considerations recorded for this substrate.'}

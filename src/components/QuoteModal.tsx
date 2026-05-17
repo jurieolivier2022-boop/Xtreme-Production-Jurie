@@ -278,14 +278,38 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
       computedPrice = computedCost * materialMarkup;
     }
 
-    // If we are explicitly updating totalPrice (manual override), use that instead of computed
-    if ('totalPrice' in updates) {
-      item.totalPrice = updates.totalPrice!;
-      item.totalCost = item.totalPrice / activeMarkup;
-    } else {
-      item.totalPrice = computedPrice;
+    // If we are explicitly updating basePrice (manual override), use that instead of computed
+    if ('basePrice' in updates) {
+      item.basePrice = updates.basePrice!;
+      item.totalCost = item.basePrice / activeMarkup;
+    } else if (!('discountValue' in updates || 'discountType' in updates)) {
+      item.basePrice = computedPrice;
       item.totalCost = computedCost;
     }
+    
+    // Ensure backwards compatibility where totalPrice override acts as basePrice if no discount logic changes it
+    if ('totalPrice' in updates && !('basePrice' in updates)) {
+      item.basePrice = updates.totalPrice!;
+      item.totalCost = item.basePrice / activeMarkup;
+    }
+
+    // Initialize basePrice from totalPrice for legacy items
+    if (item.basePrice === undefined) {
+      item.basePrice = item.totalPrice ?? computedPrice;
+    }
+
+    // Apply discount
+    let discountAmount = 0;
+    const base = item.basePrice;
+    if (item.discountValue) {
+      if (item.discountType === 'amount') {
+        discountAmount = item.discountValue;
+      } else {
+        discountAmount = base * (item.discountValue / 100);
+      }
+    }
+    
+    item.totalPrice = Math.max(0, base - discountAmount);
     
     setItems(newItems);
   };
@@ -711,7 +735,7 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
                         {/* Revenue Calculation Column */}
                         <div className="lg:col-span-3 space-y-3">
                           <label className="text-[8px] font-black text-text-light uppercase tracking-widest block opacity-60 text-right">Revenue Calculation</label>
-                          <div className="flex flex-col items-end gap-1">
+                          <div className="flex flex-col items-end gap-1.5">
                             <div className="flex items-center gap-2 group/rate">
                               <span className="text-[10px] font-bold text-text-light">R</span>
                               <input 
@@ -719,8 +743,8 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
                                 step="0.01"
                                 value={((item.type === 'Product' && products.find(p => p.id === item.originId)?.costingMethod === 'Area') || 
                                        (item.type === 'Material' && (materials.find(m => m.id === (item.type === 'Material' ? item.originId : item.materialId))?.unit?.includes('m')))) 
-                                        ? (sqMmToSqM((item.width || 0) * (item.length || 0)) * (item.quantity || 1) > 0 ? ((item.totalPrice || 0) / (sqMmToSqM((item.width || 0) * (item.length || 0)) * (item.quantity || 1))) : 0)
-                                        : (item.quantity ? (item.totalPrice || 0) / item.quantity : 0)
+                                        ? (sqMmToSqM((item.width || 0) * (item.length || 0)) * (item.quantity || 1) > 0 ? ((item.basePrice || item.totalPrice || 0) / (sqMmToSqM((item.width || 0) * (item.length || 0)) * (item.quantity || 1))) : 0)
+                                        : (item.quantity ? (item.basePrice || item.totalPrice || 0) / item.quantity : 0)
                                 }
                                 onChange={(e) => {
                                   const val = e.target.value === '' ? 0 : Number(e.target.value);
@@ -728,24 +752,50 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
                                                  (item.type === 'Material' && (materials.find(m => m.id === (item.type === 'Material' ? item.originId : item.materialId))?.unit?.includes('m')))) 
                                                   ? (sqMmToSqM((item.width || 0) * (item.length || 0)) * (item.quantity || 1)) 
                                                   : (item.quantity || 1);
-                                  updateItem(idx, { totalPrice: val * factor });
+                                  updateItem(idx, { basePrice: val * factor });
                                 }}
-                                className="w-24 bg-transparent border-none p-0 focus:ring-0 font-black text-base text-right text-brand-accent tabular-nums"
+                                className="w-24 bg-transparent border-none p-0 focus:ring-0 font-black text-base text-right text-text-main tabular-nums"
                               />
                               <span className="text-[8px] font-black text-text-light/40 uppercase tracking-widest whitespace-nowrap">
                                 / {((item.type === 'Product' && products.find(p => p.id === item.originId)?.costingMethod === 'Area') || 
                                    (item.type === 'Material' && (materials.find(m => m.id === (item.type === 'Material' ? item.originId : item.materialId))?.unit?.includes('m')))) ? 'm²' : 'unit'}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[9px] font-bold text-text-light italic">Total Yield:</span>
+                            
+                            <div className="flex items-center gap-2 mt-1 w-full justify-end">
+                              <span className="text-[9px] font-bold text-text-light italic">Base Subtotal:</span>
                               <input 
                                 type="number"
                                 step="0.01"
-                                value={item.totalPrice || ''}
-                                onChange={(e) => updateItem(idx, { totalPrice: e.target.value === '' ? 0 : Number(e.target.value) })}
-                                className="w-32 bg-brand/5 border border-brand/10 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-brand/20 font-black text-sm text-right text-text-main tabular-nums"
+                                value={item.basePrice ?? item.totalPrice ?? ''}
+                                onChange={(e) => updateItem(idx, { basePrice: e.target.value === '' ? 0 : Number(e.target.value) })}
+                                className="w-24 bg-surface border border-border/50 rounded-lg px-2 py-1 focus:ring-2 focus:ring-brand/20 font-bold text-[11px] text-right text-text-muted tabular-nums"
                               />
+                            </div>
+                            
+                            <div className="flex items-center gap-1 mt-1 bg-surface border border-border/50 rounded-lg p-1 w-32 justify-end">
+                              <select 
+                                value={item.discountType || 'percentage'}
+                                onChange={(e) => updateItem(idx, { discountType: e.target.value as any })}
+                                className="bg-transparent text-[9px] font-bold text-text-light uppercase border-r border-border/50 px-1 focus:outline-none shrink-0"
+                              >
+                                <option value="percentage">% OFF</option>
+                                <option value="amount">R OFF</option>
+                              </select>
+                              <input
+                                type="number"
+                                placeholder="Disc"
+                                value={item.discountValue || ''}
+                                onChange={(e) => updateItem(idx, { discountValue: e.target.value === '' ? 0 : Number(e.target.value) })}
+                                className="w-full bg-transparent px-1 text-[11px] text-right text-amber-600 font-bold focus:outline-none placeholder:text-text-light/30 tabular-nums"
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/30 w-full justify-end">
+                              <span className="text-[9px] font-black text-brand-accent uppercase tracking-widest">Final:</span>
+                              <span className="text-lg font-black text-brand-accent tabular-nums tracking-tight">
+                                R{item.totalPrice?.toFixed(2) || '0.00'}
+                              </span>
                             </div>
                           </div>
                         </div>
