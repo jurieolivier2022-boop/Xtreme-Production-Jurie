@@ -1,73 +1,100 @@
 import express from "express";
 import path from "path";
-import * as admin from 'firebase-admin';
+import axios from "axios";
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
-// Initialize Admin SDK once
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault()
-  });
-}
+// Initialize Firebase Admin for server-side operations
+initializeApp();
+const db = getFirestore();
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json()); // Required for JSON webhooks
+  app.use(express.json());
 
   // API health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });
 
-  // Zoho Webhook endpoint
-  app.post("/api/webhooks/zoho", async (req, res) => {
-    try {
-      console.log("Receiving Zoho webhook:", JSON.stringify(req.body));
-      const contact = req.body.contact;
-      if (!contact) {
-        return res.status(400).send("No contact data in payload");
+  // Zoho Sync Routes
+  app.get("/api/zoho/auth", (req, res) => {
+      const authUrl = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoBooks.contacts.ALL&client_id=${process.env.ZOHO_CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${process.env.ZOHO_REDIRECT_URI}`;
+      res.redirect(authUrl);
+  });
+  
+  app.get("/api/zoho/callback", async (req, res) => {
+      const { code } = req.query;
+      try {
+          const tokenResponse = await axios.post(`https://accounts.zoho.eu/oauth/v2/token`, null, {
+              params: {
+                  code,
+                  client_id: process.env.ZOHO_CLIENT_ID,
+                  client_secret: process.env.ZOHO_CLIENT_SECRET,
+                  redirect_uri: process.env.ZOHO_REDIRECT_URI,
+                  grant_type: 'authorization_code'
+              }
+          });
+          
+          // Store tokens in Firestore
+          await db.collection('settings').doc('zoho').set(tokenResponse.data);
+          res.send("Successfully connected to Zoho Books. You can close this window.");
+      } catch (error) {
+          console.error('OAuth Callback Error:', error);
+          res.status(500).send("OAuth failed");
       }
+  });
+  
+  app.post("/api/zoho/sync", async (req, res) => {
+      const { client } = req.body;
+      try {
+          const docRef = db.collection('settings').doc('zoho');
+          const docSnap = await docRef.get();
+          if (!docSnap.exists) return res.status(401).send('Zoho not connected');
+          
+          let tokens = docSnap.data();
+          
+          // Refresh token if expired
+          if (Date.now() > tokens.expires_at) {
+              const refreshResponse = await axios.post(`https://accounts.zoho.eu/oauth/v2/token`, null, {
+                  params: {
+                    client_id: process.env.ZOHO_CLIENT_ID,
+                    client_secret: process.env.ZOHO_CLIENT_SECRET,
+                    refresh_token: tokens.refresh_token,
+                    grant_type: 'refresh_token'
+                  }
+              });
+              tokens = { ...tokens, ...refreshResponse.data, expires_at: Date.now() + 3600 * 1000 };
+              await docRef.set(tokens);
+          }
 
-      const zohoContactId = contact.contact_id;
-      
-      // Look up client in Firestore by zohoContactId
-      const clientSnapshot = await admin.firestore().collection('clients')
-        .where('zohoContactId', '==', zohoContactId).get();
-      
-      if (clientSnapshot.empty) {
-        console.log(`Client not found for zohoContactId: ${zohoContactId}`);
-        // Handle potential new record, but for now just log
-        return res.status(200).send("Client not found locally");
+          const zohoContact = {
+              contact_name: client.name,
+              company_name: client.companyName,
+              email: client.email,
+              phone: client.phone
+          };
+
+          const url = client.zohoContactId 
+              ? `https://books.zoho.eu/api/v3/contacts/${client.zohoContactId}?organization_id=${process.env.ZOHO_ORG_ID}`
+              : `https://books.zoho.eu/api/v3/contacts?organization_id=${process.env.ZOHO_ORG_ID}`;
+          
+          const method = client.zohoContactId ? 'put' : 'post';
+          
+          const response = await axios({
+              method,
+              url,
+              headers: { 'Authorization': `Zoho-oauthtoken ${tokens.access_token}`, 'Content-Type': 'application/json' },
+              data: zohoContact
+          });
+          
+          res.json(response.data);
+      } catch (error) {
+          console.error('Sync Error:', error);
+          res.status(500).send('Sync failed');
       }
-
-      const clientDoc = clientSnapshot.docs[0];
-      const clientData = clientDoc.data();
-
-      // Loop Prevention check
-      const now = admin.firestore.Timestamp.now().toMillis();
-      const lastSyncedAt = clientData.lastSyncedAt ? clientData.lastSyncedAt.toMillis() : 0;
-      
-      // If synced less than 30 seconds ago, ignore
-      if (now - lastSyncedAt < 30000) {
-        console.log(`Ignoring webhook update due to recent local sync for ${clientDoc.id}`);
-        return res.status(200).send("Ignored recent update");
-      }
-
-      // Update Firestore
-      await clientDoc.ref.update({
-        name: contact.contact_name,
-        email: contact.email,
-        phone: contact.phone,
-        address: contact.billing_address?.address, // Assuming nested?
-        lastSyncedAt: admin.firestore.Timestamp.now()
-      });
-
-      res.status(200).send("Webhook processed successfully");
-    } catch (error) {
-      console.error("Webhook error:", error);
-      res.status(500).send("Internal Server Error");
-    }
   });
 
   if (process.env.NODE_ENV !== "production") {

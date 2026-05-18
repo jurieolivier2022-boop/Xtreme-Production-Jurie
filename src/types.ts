@@ -1,6 +1,7 @@
 export type JobStage = 'Prepress' | 'Printing' | 'Laminating' | 'Finishing' | 'Quality Check' | 'Ready' | 'Delivered' | 'Cancelled' | 'Embroidery' | 'Screenprinting';
 export type JobPriority = 'Normal' | 'High' | 'Urgent';
 export type CostingMethod = 'Area' | 'Per Item' | 'NCR' | 'Hourly' | 'Page';
+export type SyncStatus = 'pending' | 'synced' | 'failed';
 
 export interface Client {
   id: string;
@@ -11,6 +12,23 @@ export interface Client {
   address?: string;
   vatNumber?: string;
   createdAt: number;
+  syncStatus?: SyncStatus;
+  lastSyncedAt?: number;
+  zohoContactId?: string;
+  // Additional fields for Zoho
+  contactPerson?: string;
+  mobile?: string;
+  billingAddress?: string;
+  shippingAddress?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
+  country?: string;
+  notes?: string;
+  customerType?: string;
+  paymentTerms?: string;
+  creditLimit?: number;
+  activeStatus?: boolean;
 }
 
 export interface Supplier {
