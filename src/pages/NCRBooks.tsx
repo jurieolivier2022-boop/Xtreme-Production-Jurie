@@ -416,6 +416,15 @@ function CalculatorModal({ settings, onClose, books, onAddToQuote }: { settings:
                     />
                     <span className="text-[10px] font-black text-text-light uppercase tracking-widest group-hover:text-text-main transition-colors">Perforation</span>
                   </label>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={spec.cover}
+                      onChange={(e) => setSpec({ ...spec, cover: e.target.checked })}
+                      className="w-4 h-4 rounded border-border text-brand-accent focus:ring-brand-accent"
+                    />
+                    <span className="text-[10px] font-black text-text-light uppercase tracking-widest group-hover:text-text-main transition-colors">Wrap-around Cover</span>
+                  </label>
                 </div>
               </div>
             )}
@@ -532,6 +541,9 @@ function RegisterModal({ book, onClose }: { book: NCRBook | null, onClose: () =>
     binding: book?.binding || 'Glued',
     print: book?.print || 'Single-sided',
     options: book?.options || [],
+    paperWeight: book?.paperWeight || '60gsm',
+    coverType: book?.coverType || 'Wrap-around cover (Crocboard)',
+    turnaroundTime: book?.turnaroundTime || '5-7 business days',
     pricingGrid: book?.pricingGrid || [{ quantity: 5, cost: 0, sell: 0 }],
     status: book?.status || 'Active'
   });
@@ -664,6 +676,39 @@ function RegisterModal({ book, onClose }: { book: NCRBook | null, onClose: () =>
                    value={formData.print}
                    onChange={(e) => setFormData({ ...formData, print: e.target.value })}
                    className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-black"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-6">
+              <div>
+                <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3">Paper Weight</label>
+                <input 
+                   type="text"
+                   value={formData.paperWeight}
+                   onChange={(e) => setFormData({ ...formData, paperWeight: e.target.value })}
+                   className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-black"
+                   placeholder="e.g. 60gsm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3">Cover Type</label>
+                <input 
+                   type="text"
+                   value={formData.coverType}
+                   onChange={(e) => setFormData({ ...formData, coverType: e.target.value })}
+                   className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-black"
+                   placeholder="e.g. Crocboard Cover"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3">Turnaround Time</label>
+                <input 
+                   type="text"
+                   value={formData.turnaroundTime}
+                   onChange={(e) => setFormData({ ...formData, turnaroundTime: e.target.value })}
+                   className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-black"
+                   placeholder="e.g. 5-7 business days"
                 />
               </div>
             </div>

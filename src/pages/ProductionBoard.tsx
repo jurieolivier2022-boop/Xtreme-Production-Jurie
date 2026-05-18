@@ -16,6 +16,7 @@ export default function ProductionBoard() {
   const [selectedDeptId, setSelectedDeptId] = React.useState<string>('all');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isUpdating, setIsUpdating] = React.useState<string | null>(null);
+  const [draggedOverDeptId, setDraggedOverDeptId] = React.useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
   const [viewingJobDetails, setViewingJobDetails] = React.useState<Job | null>(null);
 
@@ -24,7 +25,13 @@ export default function ProductionBoard() {
     e.dataTransfer.setData('jobId', id);
   };
 
+  const onDragEnd = (e: React.DragEvent) => {
+    setDraggedOverDeptId(null);
+  };
+
   const onDrop = async (e: React.DragEvent, newDeptId: string) => {
+    e.preventDefault();
+    setDraggedOverDeptId(null);
     const jobId = e.dataTransfer.getData('jobId');
     if (!jobId) return;
     
@@ -114,7 +121,7 @@ export default function ProductionBoard() {
     <div className="flex flex-col gap-6 h-full overflow-hidden animate-in fade-in duration-700">
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex flex-col">
-          <h2 className="text-4xl font-black text-text-main tracking-tighter uppercase italic leading-none">Production Grid</h2>
+          <h2 className="text-4xl font-black text-text-main tracking-tighter uppercase italic leading-none font-serif">Production Grid</h2>
           <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-3">Active factory floor monitoring</p>
         </div>
         
@@ -164,9 +171,21 @@ export default function ProductionBoard() {
           return (
             <div 
               key={dept.id} 
-              onDragOver={(e) => e.preventDefault()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDraggedOverDeptId(dept.id);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setDraggedOverDeptId(null);
+                }
+              }}
               onDrop={(e) => onDrop(e, dept.id)}
-              className="flex flex-col gap-5 min-w-[320px] max-w-[320px] bg-paper/30 border border-border/30 rounded-[2.5rem] p-5 relative overflow-hidden group/col animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
+              className={cn(
+                "flex flex-col gap-5 min-w-[320px] max-w-[320px] bg-paper/30 border border-border/30 rounded-[2.5rem] p-5 relative overflow-hidden group/col animate-in fade-in slide-in-from-bottom-4 fill-mode-both transition-all duration-300",
+                draggedOverDeptId === dept.id && "bg-brand/5 border-brand/50 ring-4 ring-brand/20 scale-[1.02] z-10"
+              )}
               style={{ animationDelay: `${idx * 0.1}s` }}
             >
               <div className="absolute top-0 left-0 right-0 h-1 bg-surface opacity-50">
@@ -217,6 +236,7 @@ export default function ProductionBoard() {
                         layoutId={job.id}
                         draggable
                         onDragStart={(e) => onDragStart(e, job.id)}
+                        onDragEnd={onDragEnd}
                         onClick={() => {
                           setViewingJobDetails(job);
                           setIsDetailsOpen(true);
@@ -314,6 +334,23 @@ export default function ProductionBoard() {
                   })
                 )}
               </div>
+
+              {/* Drop Target Overlay */}
+              <AnimatePresence>
+                {draggedOverDeptId === dept.id && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-20 bg-brand/5 backdrop-blur-[2px] flex items-center justify-center rounded-[2.5rem] border-2 border-dashed border-brand/50 pointer-events-none"
+                  >
+                    <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-xl shadow-brand/10 flex items-center gap-3">
+                       <Package size={20} className="text-brand animate-bounce" />
+                       <span className="text-[11px] font-black text-brand uppercase tracking-widest">Drop to Move</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           );
         })}

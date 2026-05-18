@@ -306,6 +306,20 @@ function SupplierModal({ supplier, onClose }: { supplier: Supplier | null, onClo
                 <input required type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand" />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Phone Number</label>
+                <input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Lead Time</label>
+                <input value={formData.leadTime} onChange={(e) => setFormData({ ...formData, leadTime: e.target.value })} className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand" placeholder="e.g. 2-3 Days" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Address</label>
+              <textarea value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand h-20" />
+            </div>
             <div>
               <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Categories</label>
               <div className="flex flex-wrap gap-2">

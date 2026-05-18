@@ -42,12 +42,14 @@ export const DEFAULT_PRICING_SETTINGS: PricingSettings = {
 };
 
 export const calculateQuoteTotals = (
-  items: { totalPrice: number; totalCost: number }[],
+  items: { totalPrice: number; totalCost: number; basePrice?: number }[],
   isExpress: boolean,
   settings: PricingSettings
 ) => {
-  const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-  const totalCost = items.reduce((sum, item) => sum + item.totalCost, 0);
+  const baseSubtotal = items.reduce((sum, item) => sum + ((item.basePrice !== undefined ? item.basePrice : item.totalPrice) || 0), 0);
+  const subtotal = items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+  const totalCost = items.reduce((sum, item) => sum + (item.totalCost || 0), 0);
+  const totalDiscount = Math.max(0, baseSubtotal - subtotal);
   
   let expressSurcharge = 0;
   if (isExpress) {
@@ -64,6 +66,8 @@ export const calculateQuoteTotals = (
   const profit = taxableAmount - totalCost;
 
   return {
+    baseSubtotal,
+    totalDiscount,
     subtotal,
     expressSurcharge,
     vat,
@@ -101,19 +105,18 @@ export const calculateNCRPrice = (
     
   unitPrice = unitPrice * (1 - discount);
   
-  // Add fees
-  let totalFees = 0;
-  if (hasNumbering) totalFees += settings.ncrNumberingFee;
-  if (hasPerforation) totalFees += settings.ncrPerforationFee;
-  if (hasCover) totalFees += settings.ncrCoverFee;
+  // Add fees per unit
+  let unitFees = 0;
+  if (hasNumbering) unitFees += settings.ncrNumberingFee;
+  if (hasPerforation) unitFees += settings.ncrPerforationFee;
+  if (hasCover) unitFees += settings.ncrCoverFee;
   
-  const totalPrice = (unitPrice * quantity) + totalFees;
+  const totalPrice = (unitPrice + unitFees) * quantity;
   const markup = 1 + ((settings.materialMarkupPercent ?? 40) / 100);
   const costPrice = totalPrice / markup;
-  const unitCost = costPrice / quantity;
   
   return {
-    unitPrice: totalPrice / quantity,
+    unitPrice: unitPrice + unitFees,
     totalPrice,
     costPrice
   };

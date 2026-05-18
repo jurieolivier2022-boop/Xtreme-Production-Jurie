@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar, Clock, CheckCircle2, Layers, Wrench, Zap, Info, Scissors, Check, Printer, Edit2, Box, Book, ExternalLink, FileText, Settings, MessageCircle, Mail, Share2, Upload, Camera, Trash2 } from 'lucide-react';
+import { X, Calendar, Clock, CheckCircle2, Layers, Wrench, Zap, Info, Scissors, Check, Printer, Edit2, Box, Book, ExternalLink, FileText, Settings, MessageCircle, Mail, Share2, Upload, Camera, Trash2, Send } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { Job, Client, Department, Machine, Material, CompanySettings, Product } from '../types';
@@ -43,7 +43,38 @@ export default function JobDetailsModal({
   const [activeTab, setActiveTab] = React.useState<'details' | 'items' | 'artwork' | 'completion'>('details');
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [job, setJob] = React.useState(initialJob);
+  const [staffFeedback, setStaffFeedback] = React.useState<Record<string, string>>({});
   const completionFileRef = React.useRef<HTMLInputElement>(null);
+
+  const handleAddStaffComment = async (artId: string) => {
+    const feedbackText = staffFeedback[artId]?.trim();
+    if (!feedbackText) return;
+
+    setIsProcessing(true);
+    const newComment = {
+      id: Math.random().toString(36).substr(2, 9),
+      text: feedbackText,
+      author: 'Staff' as const,
+      createdAt: Date.now()
+    };
+
+    const updatedArtwork = job.artwork?.map(art => 
+      art.id === artId 
+        ? { ...art, comments: [...(art.comments || []), newComment] }
+        : art
+    );
+
+    try {
+      await updateDocument('jobs', job.id, { artwork: updatedArtwork });
+      setStaffFeedback(prev => ({ ...prev, [artId]: '' }));
+      setJob(prev => ({ ...prev, artwork: updatedArtwork }));
+      toast.success('Comment added');
+    } catch (error) {
+      toast.error('Failed to add comment');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   React.useEffect(() => {
     setJob(initialJob);
@@ -651,8 +682,24 @@ export default function JobDetailsModal({
                               )}
                               <div className="flex flex-col">
                                 <span className="text-[9px] font-black text-text-light uppercase tracking-widest mb-1 opacity-60">Component Value</span>
-                                <span className="text-[11px] font-black text-text-main tabular-nums italic">R {item.totalPrice.toLocaleString()}</span>
+                                <span className="text-[11px] font-black text-text-main tabular-nums italic">R {item.totalPrice.toLocaleString()}
+                                  {item.discountValue ? (
+                                    <span className="ml-2 text-[9px] text-red-500 line-through">
+                                      R {item.basePrice?.toLocaleString()}
+                                    </span>
+                                  ) : null}
+                                </span>
                               </div>
+                              {item.startNumber && (
+                                <div className="flex flex-col">
+                                  <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1 pointer-events-none">Sequence Control</span>
+                                  <div className="flex items-center gap-2">
+                                     <span className="text-[11px] font-black text-blue-600 tabular-nums italic bg-blue-50/50 px-3 py-1 rounded-lg border border-blue-100/50">
+                                       {item.startNumber} <span className="mx-1 opacity-40">→</span> {item.endNumber || 'END'}
+                                     </span>
+                                  </div>
+                                </div>
+                              )}
                            </div>
                         </div>
                       ))}
@@ -740,25 +787,79 @@ export default function JobDetailsModal({
                                       art.status === 'Changes Requested' ? "bg-red-600" :
                                       "bg-amber-600"
                                     )} />
-                                    {art.status}
-                                  </span>
-                                  <p className="text-[9px] text-text-light font-black uppercase tracking-widest opacity-40">Uploaded {new Date(art.uploadedAt).toLocaleDateString()}</p>
-                               </div>
-                               {art.feedback && (
-                                 <div className="mt-3 relative">
-                                    <MessageCircle size={10} className="absolute -left-1 -top-1 text-brand opacity-20" />
-                                    <p className="text-[10px] text-text-main/70 italic bg-surface/50 p-3 rounded-xl border border-border/40 leading-relaxed">
-                                      {art.feedback}
-                                    </p>
-                                 </div>
-                               )}
-                            </div>
-                            <button 
-                              onClick={() => window.open(art.url, '_blank')}
-                              className="w-12 h-12 flex items-center justify-center text-brand bg-brand/5 hover:bg-brand/10 rounded-2xl transition-all"
-                            >
-                              <ExternalLink size={20} />
-                            </button>
+                                {art.status}
+                                   </span>
+                                   <p className="text-[9px] text-text-light font-black uppercase tracking-widest opacity-40">Uploaded {new Date(art.uploadedAt).toLocaleDateString()}</p>
+                                </div>
+
+                                {/* Enhanced Feedback Thread */}
+                                <div className="mt-4 border-t border-border/40 pt-4">
+                                   <div className="space-y-3 mb-4 max-h-60 overflow-y-auto pr-1 scrollbar-thin">
+                                      {(art.comments?.length || 0) === 0 ? (
+                                        <p className="text-[9px] font-bold text-text-light uppercase tracking-widest opacity-50 italic">No feedback history collected</p>
+                                      ) : (
+                                        art.comments?.map((comment) => (
+                                          <div 
+                                            key={comment.id}
+                                            className={cn(
+                                              "p-3 rounded-xl text-[10px]",
+                                              comment.author === 'Staff' ? "bg-brand/5 border border-brand/10 ml-4" : 
+                                              comment.author === 'Client' ? "bg-emerald-50 border border-emerald-100 mr-4" :
+                                              "bg-gray-50 border border-gray-100 italic"
+                                            )}
+                                          >
+                                            <div className="flex justify-between items-center mb-1">
+                                              <span className="font-black uppercase tracking-widest text-[8px] opacity-70">
+                                                {comment.author === 'Staff' ? 'Internal Response' : 
+                                                 comment.author === 'Client' ? 'Client Feedback' : 'System Log'}
+                                              </span>
+                                              <span className="text-[8px] opacity-40">{new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                            <p className="font-bold text-text-main leading-relaxed">{comment.text}</p>
+                                          </div>
+                                        ))
+                                      )}
+                                   </div>
+
+                                   <div className="flex gap-2">
+                                      <input 
+                                        type="text"
+                                        value={staffFeedback[art.id] || ''}
+                                        onChange={(e) => setStaffFeedback(prev => ({ ...prev, [art.id]: e.target.value }))}
+                                        placeholder="Add internal response..."
+                                        className="flex-1 bg-surface border border-border/60 rounded-xl px-4 py-2 text-[11px] font-bold focus:outline-none focus:border-brand transition-all"
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAddStaffComment(art.id)}
+                                      />
+                                      <button 
+                                        onClick={() => handleAddStaffComment(art.id)}
+                                        disabled={isProcessing || !staffFeedback[art.id]?.trim()}
+                                        className="p-2 bg-brand text-white rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                                      >
+                                        <Send size={14} />
+                                      </button>
+                                   </div>
+                                </div>
+                             </div>
+                             <div className="flex flex-col gap-2">
+                               <button 
+                                 onClick={() => window.open(art.url, '_blank')}
+                                 className="w-10 h-10 flex items-center justify-center text-brand bg-brand/5 hover:bg-brand/10 rounded-xl transition-all shadow-sm"
+                               >
+                                 <ExternalLink size={18} />
+                               </button>
+                               <button 
+                                 onClick={async () => {
+                                   if (!confirm('Permanently remove this artwork version?')) return;
+                                   const updatedArtwork = job.artwork?.filter(a => a.id !== art.id);
+                                   await updateDocument('jobs', job.id, { artwork: updatedArtwork });
+                                   setJob(prev => ({ ...prev, artwork: updatedArtwork }));
+                                   toast.success('Artwork removed');
+                                 }}
+                                 className="w-10 h-10 flex items-center justify-center text-red-500 bg-red-50 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm"
+                               >
+                                 <Trash2 size={18} />
+                               </button>
+                             </div>
 
                             {art.status === 'Approved' && (
                               <div className="absolute top-0 right-0 py-1 px-4 bg-emerald-500 text-white text-[7px] font-black uppercase tracking-[0.2em] -rotate-12 translate-x-4 -translate-y-1 shadow-md">

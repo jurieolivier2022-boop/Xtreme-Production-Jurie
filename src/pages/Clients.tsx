@@ -315,7 +315,6 @@ function ClientHistoryModal({
 }) {
   const { data: quotes } = useCollection<Quote>('quotes');
   const { data: jobs } = useCollection<Job>('jobs');
-  const [activeTab, setActiveTab] = useState<'quotes' | 'jobs'>('quotes');
 
   const clientQuotes = quotes
     .filter(q => q.clientId === client.id)
@@ -330,7 +329,7 @@ function ClientHistoryModal({
       <div className="bg-white w-full max-w-2xl h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         <div className="p-8 border-b border-border flex items-center justify-between bg-blue-50/30">
           <div>
-            <h2 className="text-2xl font-black text-text-main tracking-tighter uppercase italic">{client.name}</h2>
+            <h2 className="text-2xl font-black text-text-main tracking-tighter uppercase italic font-serif">{client.name}</h2>
             <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">Client History Explorer</p>
           </div>
           <button onClick={onClose} className="p-3 hover:bg-white rounded-2xl transition-all shadow-sm group">
@@ -338,31 +337,13 @@ function ClientHistoryModal({
           </button>
         </div>
 
-        <div className="flex px-8 border-b border-border">
-          <button 
-            onClick={() => setActiveTab('quotes')}
-            className={cn(
-              "px-6 py-4 text-xs font-black uppercase tracking-widest transition-all relative",
-              activeTab === 'quotes' ? "text-brand" : "text-text-muted hover:text-text-main"
-            )}
-          >
-            Quotes ({clientQuotes.length})
-            {activeTab === 'quotes' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-t-full" />}
-          </button>
-          <button 
-            onClick={() => setActiveTab('jobs')}
-            className={cn(
-              "px-6 py-4 text-xs font-black uppercase tracking-widest transition-all relative",
-              activeTab === 'jobs' ? "text-brand" : "text-text-muted hover:text-text-main"
-            )}
-          >
-            Jobcards ({clientJobs.length})
-            {activeTab === 'jobs' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-brand rounded-t-full" />}
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-8 bg-gray-50/50">
-          {activeTab === 'quotes' ? (
+        <div className="flex-1 overflow-y-auto p-8 bg-gray-50/50 space-y-12 no-scrollbar">
+          {/* Quotes Section */}
+          <section>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-8 w-1.5 bg-amber-500 rounded-full" />
+              <h3 className="text-xl font-black text-text-main italic uppercase tracking-tight font-serif">Quotations ({clientQuotes.length})</h3>
+            </div>
             <div className="space-y-4">
               {clientQuotes.map(quote => (
                 <div key={quote.id} className="bg-white p-6 rounded-[2rem] border border-border hover:shadow-xl hover:shadow-blue-500/5 transition-all group">
@@ -403,20 +384,27 @@ function ClientHistoryModal({
                     <div className="text-[10px] font-bold text-text-light uppercase tracking-widest">
                       {quote.items.length} Line Items
                     </div>
-                    <div className="text-sm font-black text-brand tracking-tight">
+                    <div className="text-sm font-black text-amber-600 tracking-tight">
                       R {quote.total.toLocaleString()}
                     </div>
                   </div>
                 </div>
               ))}
               {clientQuotes.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-text-light opacity-40">
-                  <FileText size={48} strokeWidth={1} className="mb-4" />
-                  <p className="text-[10px] font-black uppercase tracking-widest italic">No quotes found for this client</p>
+                <div className="flex flex-col items-center justify-center py-12 bg-white/50 rounded-[2rem] border border-dashed border-border text-text-light opacity-40">
+                  <FileText size={40} strokeWidth={1} className="mb-3" />
+                  <p className="text-[9px] font-black uppercase tracking-widest italic">No quotes found for this client</p>
                 </div>
               )}
             </div>
-          ) : (
+          </section>
+
+          {/* Jobs Section */}
+          <section>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-8 w-1.5 bg-brand rounded-full" />
+              <h3 className="text-xl font-black text-text-main italic uppercase tracking-tight font-serif">Jobcards ({clientJobs.length})</h3>
+            </div>
             <div className="space-y-4">
               {clientJobs.map(job => (
                 <div key={job.id} className="bg-white p-6 rounded-[2rem] border border-border hover:shadow-xl hover:shadow-blue-500/5 transition-all">
@@ -466,13 +454,13 @@ function ClientHistoryModal({
                 </div>
               ))}
               {clientJobs.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-text-light opacity-40">
-                  <Briefcase size={48} strokeWidth={1} className="mb-4" />
-                  <p className="text-[10px] font-black uppercase tracking-widest italic">No jobcards found for this client</p>
+                <div className="flex flex-col items-center justify-center py-12 bg-white/50 rounded-[2rem] border border-dashed border-border text-text-light opacity-40">
+                  <Briefcase size={40} strokeWidth={1} className="mb-3" />
+                  <p className="text-[9px] font-black uppercase tracking-widest italic">No jobcards found for this client</p>
                 </div>
               )}
             </div>
-          )}
+          </section>
         </div>
       </div>
     </div>
@@ -499,7 +487,13 @@ function ClientModal({ client, onClose }: { client: Client | null, onClose: () =
     console.log('Button Click: Save Client Details', { isEdit: !!client });
     setIsSaving(true);
     try {
-      const data = { ...formData, createdAt: client?.createdAt || Date.now() };
+      // Auto-populate company name if empty
+      const finalCompanyName = formData.companyName || formData.name;
+      const data = { 
+        ...formData, 
+        companyName: finalCompanyName,
+        createdAt: client?.createdAt || Date.now() 
+      };
       let newClientId = client?.id;
       if (client) {
         await updateDocument('clients', client.id, data);
@@ -534,6 +528,11 @@ function ClientModal({ client, onClose }: { client: Client | null, onClose: () =
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onBlur={() => {
+                  if (formData.name && !formData.companyName) {
+                    setFormData(prev => ({ ...prev, companyName: prev.name }));
+                  }
+                }}
                 className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand"
               />
             </div>

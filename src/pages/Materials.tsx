@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Filter, Tag, AlertTriangle, Edit2, Trash2, X, Eye, Info, Layers, Beaker } from 'lucide-react';
+import { Search, Plus, Filter, Tag, AlertTriangle, Edit2, Trash2, X, Eye, Info, Layers, Beaker, Box } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Material, Supplier, PricingSettings } from '../types';
@@ -16,6 +16,8 @@ export default function Materials() {
   const markup = 1 + ((pricingSettings.materialMarkupPercent ?? 40) / 100);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [displayUnit, setDisplayUnit] = useState<string>('Default');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [materialToDelete, setMaterialToDelete] = useState<string | null>(null);
@@ -31,6 +33,28 @@ export default function Materials() {
     const matchesCategory = selectedCategory === 'All' || m.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const getConvertedStock = (m: Material) => {
+    if (displayUnit === 'Default' || m.unit === displayUnit) {
+      return m.stockLevel;
+    }
+    const factor = m.conversions?.[displayUnit];
+    return factor ? m.stockLevel * factor : m.stockLevel;
+  };
+
+  const getConvertedCost = (m: Material) => {
+    if (displayUnit === 'Default' || m.unit === displayUnit) {
+      return m.costPrice;
+    }
+    const factor = m.conversions?.[displayUnit];
+    return factor ? m.costPrice / factor : m.costPrice;
+  };
+
+  const currentUnitLabel = (m: Material) => {
+    if (displayUnit === 'Default') return m.unit;
+    if (m.conversions?.[displayUnit]) return displayUnit;
+    return m.unit;
+  };
 
   const handleEdit = (material: Material) => {
     console.log('Button Click: Edit Material', { id: material.id });
@@ -70,11 +94,35 @@ export default function Materials() {
   return (
     <div className="flex flex-col gap-10 animate-in fade-in duration-700">
       <header className="flex flex-col">
-        <h2 className="text-4xl font-black text-text-main tracking-tighter uppercase italic text-brand-accent">Print Media Library</h2>
-        <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-2">Wide-format substrates & consumable management</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-4xl font-black text-text-main tracking-tighter uppercase italic text-brand-accent font-serif">Print Media Library</h2>
+            <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-2">Wide-format substrates & consumable management</p>
+          </div>
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-border shadow-sm">
+            <button 
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                "p-2.5 rounded-xl transition-all",
+                viewMode === 'grid' ? "bg-brand-accent text-white shadow-md shadow-brand-accent/20" : "text-text-light hover:bg-surface"
+              )}
+            >
+              <Box size={20} />
+            </button>
+            <button 
+              onClick={() => setViewMode('table')}
+              className={cn(
+                "p-2.5 rounded-xl transition-all",
+                viewMode === 'table' ? "bg-brand-accent text-white shadow-md shadow-brand-accent/20" : "text-text-light hover:bg-surface"
+              )}
+            >
+              <Filter size={20} className="rotate-90" />
+            </button>
+          </div>
+        </div>
       </header>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1">
           <div className="relative group w-full max-w-sm">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-light group-focus-within:text-brand-accent transition-colors" size={18} />
@@ -86,13 +134,30 @@ export default function Materials() {
               className="w-full pl-12 pr-4 py-3 bg-paper border border-border rounded-xl text-[11px] font-black uppercase tracking-widest focus:outline-none focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent transition-all shadow-sm"
             />
           </div>
+
+          <div className="flex items-center gap-1 bg-white p-1.5 rounded-2xl border border-border shadow-sm overflow-x-auto no-scrollbar max-w-[400px]">
+            {['Default', 'm²', 'kg', 'sheet', 'liter'].map((unit) => (
+              <button
+                key={unit}
+                onClick={() => setDisplayUnit(unit)}
+                className={cn(
+                  "px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                  displayUnit === unit 
+                    ? "bg-brand-accent text-white shadow-md shadow-brand-accent/20" 
+                    : "text-text-light hover:text-brand-accent hover:bg-surface"
+                )}
+              >
+                {unit}
+              </button>
+            ))}
+          </div>
         </div>
         <button 
           onClick={() => {
             setEditingMaterial(null);
             setIsModalOpen(true);
           }}
-          className="bg-brand-accent text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:shadow-lg hover:shadow-brand-accent/20 transition-all flex items-center gap-3 active:scale-95"
+          className="bg-brand-accent text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:shadow-lg hover:shadow-brand-accent/20 transition-all flex items-center gap-3 active:scale-95 shrink-0"
         >
           <Plus size={18} strokeWidth={3} />
           Register Media
@@ -116,65 +181,150 @@ export default function Materials() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {filteredMaterials.map((m) => (
-          <div key={m.id} className={cn(
-            "card-minimal p-6 flex flex-col relative overflow-hidden group border-r-4 border-brand-accent/10 transition-all",
-            isUpdating === m.id && "opacity-50 pointer-events-none"
-          )}>
-            {isUpdating === m.id && (
-              <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px] z-50 flex items-center justify-center">
-                <div className="w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin" />
-              </div>
-            )}
-            <div className="absolute inset-0 grid-structure opacity-[0.015] pointer-events-none" />
-            
-            <div className="flex justify-between items-start mb-6 relative z-10">
-              <div className="w-12 h-12 bg-surface border border-border/50 rounded-2xl flex items-center justify-center text-brand-accent shadow-sm">
-                <Tag size={20} />
-              </div>
-              <div className="flex items-center gap-2">
-                {m.stockLevel <= m.minStock && (
-                  <div className="flex items-center gap-1.5 text-red-500 bg-red-50 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-wider border border-red-100 animate-pulse">
-                    <AlertTriangle size={10} />
-                    Refill
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {filteredMaterials.map((m) => (
+            <div key={m.id} className={cn(
+              "card-minimal p-6 flex flex-col relative overflow-hidden group border-r-4 border-brand-accent/10 transition-all shadow-md hover:shadow-xl hover:-translate-y-1",
+              isUpdating === m.id && "opacity-50 pointer-events-none"
+            )}>
+              {isUpdating === m.id && (
+                <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px] z-50 flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin" />
+                </div>
+              )}
+              <div className="absolute inset-0 grid-structure opacity-[0.015] pointer-events-none" />
+              
+              <div className="flex justify-between items-start mb-6 relative z-10">
+                <div className="w-12 h-12 bg-surface border border-border/50 rounded-2xl flex items-center justify-center text-brand-accent shadow-sm">
+                  <Tag size={20} />
+                </div>
+                <div className="flex items-center gap-2">
+                  {m.stockLevel <= m.minStock && (
+                    <div className="flex items-center gap-1.5 text-red-500 bg-red-50 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-wider border border-red-100 animate-pulse">
+                      <AlertTriangle size={10} />
+                      Refill
+                    </div>
+                  )}
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                    <button onClick={() => setViewingMaterial(m)} className="p-2 text-text-light hover:text-brand-accent hover:bg-white rounded-lg transition-all" title="View Details"><Eye size={14} /></button>
+                    <button onClick={() => handleEdit(m)} className="p-2 text-text-light hover:text-brand-accent hover:bg-white rounded-lg transition-all" title="Edit"><Edit2 size={14} /></button>
+                    <button onClick={() => handleDelete(m.id)} className="p-2 text-text-light hover:text-red-500 hover:bg-white rounded-lg transition-all" title="Delete"><Trash2 size={14} /></button>
                   </div>
-                )}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  <button onClick={() => setViewingMaterial(m)} className="p-2 text-text-light hover:text-brand-accent hover:bg-white rounded-lg transition-all" title="View Details"><Eye size={14} /></button>
-                  <button onClick={() => handleEdit(m)} className="p-2 text-text-light hover:text-brand-accent hover:bg-white rounded-lg transition-all" title="Edit"><Edit2 size={14} /></button>
-                  <button onClick={() => handleDelete(m.id)} className="p-2 text-text-light hover:text-red-500 hover:bg-white rounded-lg transition-all" title="Delete"><Trash2 size={14} /></button>
+                </div>
+              </div>
+
+              <h3 className="font-black text-text-main text-sm mb-1 tracking-tighter uppercase italic">{m.name}</h3>
+              <span className="text-[10px] text-text-light font-black uppercase tracking-[0.2em] mb-6">{m.category}</span>
+
+              <div className="mt-auto grid grid-cols-2 gap-6 pt-6 border-t border-border/30 relative z-10">
+                <div>
+                  <span className="text-[8px] text-text-light uppercase font-black tracking-widest block mb-1">
+                    In Stock {displayUnit !== 'Default' ? `(${displayUnit})` : ''}
+                  </span>
+                  <span className={cn(
+                    "text-xl font-black tabular-nums tracking-tighter",
+                    m.stockLevel <= m.minStock ? "text-red-500" : "text-text-main"
+                  )}>
+                    {getConvertedStock(m).toFixed(1)} 
+                    <span className="text-[10px] text-text-light ml-0.5 opacity-50 uppercase">
+                      {currentUnitLabel(m)}
+                      {!m.conversions?.[displayUnit] && displayUnit !== 'Default' && m.unit !== displayUnit && " *"}
+                    </span>
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[8px] text-text-light uppercase font-black tracking-widest block mb-1">
+                    Cost / {currentUnitLabel(m)}
+                  </span>
+                  <p className="text-xl font-black text-text-main tabular-nums tracking-tighter italic">
+                    <span className="text-xs mr-0.5 font-bold not-italic text-text-light">R</span>
+                    {getConvertedCost(m).toFixed(2).replace('.', ',')}
+                  </p>
+                  <p className="text-[10px] font-black text-brand-accent uppercase mt-1">
+                    Sell <span className="text-xs font-bold not-italic">R</span>{(getConvertedCost(m) * markup).toFixed(2).replace('.', ',')}
+                  </p>
                 </div>
               </div>
             </div>
-
-            <h3 className="font-black text-text-main text-sm mb-1 tracking-tighter uppercase italic">{m.name}</h3>
-            <span className="text-[10px] text-text-light font-black uppercase tracking-[0.2em] mb-6">{m.category}</span>
-
-            <div className="mt-auto grid grid-cols-2 gap-6 pt-6 border-t border-border/30 relative z-10">
-              <div>
-                <span className="text-[8px] text-text-light uppercase font-black tracking-widest block mb-1">In Stock</span>
-                <span className={cn(
-                  "text-xl font-black tabular-nums tracking-tighter",
-                  m.stockLevel <= m.minStock ? "text-red-500" : "text-text-main"
-                )}>
-                  {m.stockLevel.toFixed(1)} <span className="text-[10px] text-text-light ml-0.5 opacity-50 uppercase">{m.unit}</span>
-                </span>
-              </div>
-              <div>
-                <span className="text-[8px] text-text-light uppercase font-black tracking-widest block mb-1">Cost / {m.unit}</span>
-                <span className="text-xl font-black text-text-main tabular-nums tracking-tighter italic mr-4">
-                  <span className="text-xs mr-0.5 font-bold not-italic text-text-light">R</span>{m.costPrice.toFixed(2).replace('.', ',')}
-                </span>
-                <span className="text-[8px] text-brand-accent uppercase font-black tracking-widest block mb-1">Est. Sell / {m.unit}</span>
-                <span className="text-xl font-black text-brand-accent tabular-nums tracking-tighter italic">
-                  <span className="text-xs mr-0.5 font-bold not-italic">R</span>{(m.costPrice * markup).toFixed(2).replace('.', ',')}
-                </span>
-              </div>
-            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-[2.5rem] border border-border shadow-xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface/50 border-b border-border">
+                  <th className="px-8 py-5 text-[10px] font-black text-text-light uppercase tracking-widest">Media Specification</th>
+                  <th className="px-6 py-5 text-[10px] font-black text-text-light uppercase tracking-widest">Category</th>
+                  <th className="px-6 py-5 text-[10px] font-black text-text-light uppercase tracking-widest">Pricing Metric</th>
+                  <th className="px-6 py-5 text-[10px] font-black text-text-light uppercase tracking-widest text-right">In Stock</th>
+                  <th className="px-6 py-5 text-[10px] font-black text-text-light uppercase tracking-widest text-right">Cost Price</th>
+                  <th className="px-6 py-5 text-[10px] font-black text-text-light uppercase tracking-widest text-right">Selling Price</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-text-light uppercase tracking-widest text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredMaterials.map((m) => (
+                  <tr key={m.id} className="group hover:bg-surface/30 transition-colors">
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-white border border-border rounded-xl flex items-center justify-center text-brand-accent shadow-sm">
+                          <Tag size={16} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-text-main uppercase italic">{m.name}</p>
+                          <p className="text-[9px] font-bold text-text-light uppercase tracking-widest mt-0.5">{m.location || 'No Location'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className="px-2.5 py-1 bg-white border border-border rounded-lg text-[8px] font-black text-text-light uppercase tracking-widest">
+                        {m.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 text-[10px] font-bold text-text-muted uppercase tracking-widest">
+                      Per {currentUnitLabel(m)}
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className={cn(
+                          "text-base font-black tabular-nums tracking-tighter",
+                          m.stockLevel <= m.minStock ? "text-red-500" : "text-text-main"
+                        )}>
+                          {getConvertedStock(m).toFixed(1)} {currentUnitLabel(m)}
+                        </span>
+                        {m.stockLevel <= m.minStock && (
+                          <span className="text-[7px] font-black text-red-600 uppercase tracking-widest bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100 flex items-center gap-1 mt-1">
+                            <AlertTriangle size={8} /> Refill Required
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <span className="text-sm font-black text-text-main tabular-nums italic">
+                        R {getConvertedCost(m).toFixed(2)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      <span className="text-sm font-black text-brand-accent tabular-nums italic">
+                        R {(getConvertedCost(m) * markup).toFixed(2)}
+                      </span>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => setViewingMaterial(m)} className="p-2.5 text-text-light hover:text-brand-accent hover:bg-white rounded-xl transition-all shadow-sm"><Eye size={16} /></button>
+                        <button onClick={() => handleEdit(m)} className="p-2.5 text-text-light hover:text-brand-accent hover:bg-white rounded-xl transition-all shadow-sm"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete(m.id)} className="p-2.5 text-text-light hover:text-red-500 hover:bg-white rounded-xl transition-all shadow-sm"><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <MaterialModal 
@@ -222,6 +372,7 @@ function MaterialModal({ material, suppliers, onClose }: { material: Material | 
     printMethods: material?.printMethods || [],
     inkTypes: material?.inkTypes || [],
     printingConsiderations: material?.printingConsiderations || '',
+    conversions: material?.conversions || {},
   });
 
   const PRINT_METHODS = ['Digital', 'Offset', 'Screen', 'Flexo', 'Litho'];
@@ -265,7 +416,7 @@ function MaterialModal({ material, suppliers, onClose }: { material: Material | 
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 relative mb-10 sm:mb-20">
         <div className="px-10 py-8 bg-paper border-b border-border flex justify-between items-center shrink-0">
           <div>
-            <h3 className="text-2xl font-black text-text-main tracking-tighter uppercase italic">{material ? 'Edit Substrate' : 'New Substrate'}</h3>
+            <h3 className="text-2xl font-black text-text-main tracking-tighter uppercase italic font-serif">{material ? 'Edit Substrate' : 'New Substrate'}</h3>
             <p className="text-[10px] font-black text-text-light uppercase tracking-[0.2em]">Material specifications & dimension billing</p>
           </div>
           <button onClick={onClose} className="p-3 hover:bg-surface rounded-2xl transition-all">
@@ -341,16 +492,22 @@ function MaterialModal({ material, suppliers, onClose }: { material: Material | 
             <div className="grid grid-cols-2 gap-6">
                <div>
                 <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3">Billing Metric</label>
-                <select 
-                  value={formData.unit}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-bold focus:outline-none focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent appearance-none cursor-pointer"
-                >
-                  <option value="m²">Square Meters (m²)</option>
-                  <option value="sheet">Sheet</option>
-                  <option value="kg">kg</option>
-                  <option value="liter">liter</option>
-                </select>
+                <div className="relative">
+                  <input 
+                    type="text"
+                    list="unit-options"
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-bold focus:outline-none focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent"
+                    placeholder="e.g. roll, pack, gram"
+                  />
+                  <datalist id="unit-options">
+                    <option value="m²" />
+                    <option value="sheet" />
+                    <option value="kg" />
+                    <option value="liter" />
+                  </datalist>
+                </div>
               </div>
               <div>
                 <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3">Storage Location</label>
@@ -403,7 +560,7 @@ function MaterialModal({ material, suppliers, onClose }: { material: Material | 
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3">Substrate Type</label>
+                <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3">Material Type</label>
                 <input 
                   type="text"
                   value={formData.materialType}
@@ -421,6 +578,41 @@ function MaterialModal({ material, suppliers, onClose }: { material: Material | 
                 className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-bold focus:outline-none focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent h-24 resize-none"
                 placeholder="Notes on ink limits, profiles, or drying times..."
               />
+            </div>
+
+            <div className="space-y-6 pt-6 border-t border-border/30">
+              <h4 className="text-[10px] font-black text-text-light uppercase tracking-[0.3em]">Unit Conversions</h4>
+              <p className="text-[9px] font-bold text-text-light uppercase leading-relaxed">
+                Define the multiplier from base 1 {formData.unit} to alternative units.<br/>
+                Example: If 1 {formData.unit} = 5 kg, set kg factor to 5.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                {['m²', 'kg', 'sheet', 'liter'].map(u => (
+                  u !== formData.unit && (
+                    <div key={u} className="relative group">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-text-light group-focus-within:text-brand-accent transition-colors uppercase">{u}</div>
+                      <input 
+                        type="number"
+                        step="0.0001"
+                        value={formData.conversions?.[u] || ''}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          setFormData({
+                            ...formData,
+                            conversions: {
+                              ...formData.conversions,
+                              [u]: isNaN(val) ? 0 : val
+                            }
+                          });
+                        }}
+                        className="w-full pl-16 pr-4 py-3 bg-gray-50 border border-border rounded-xl font-bold text-[11px] focus:outline-none focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent"
+                        placeholder="Factor"
+                      />
+                    </div>
+                  )
+                ))}
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -514,7 +706,7 @@ function MaterialViewModal({ material, suppliers, onClose }: { material: Materia
           <div className="w-20 h-20 bg-brand-accent/10 rounded-3xl flex items-center justify-center text-brand-accent mb-8">
             <Layers size={36} />
           </div>
-          <h3 className="text-2xl font-black text-text-main tracking-tighter uppercase italic leading-tight mb-2">{material.name}</h3>
+          <h3 className="text-2xl font-black text-text-main tracking-tighter uppercase italic leading-tight mb-2 font-serif">{material.name}</h3>
           <span className="text-[10px] font-black text-brand-accent uppercase tracking-widest bg-brand-accent/5 px-3 py-1 rounded-full self-start mb-10 border border-brand-accent/10">
             {material.category}
           </span>
@@ -523,6 +715,16 @@ function MaterialViewModal({ material, suppliers, onClose }: { material: Materia
             <div>
               <span className="text-[8px] font-black text-text-light uppercase tracking-widest block mb-1 opacity-50">Current Inventory</span>
               <p className="text-2xl font-black text-text-main italic tracking-tighter">{material.stockLevel} <span className="text-[10px] opacity-40">{material.unit}</span></p>
+              
+              {material.conversions && Object.entries(material.conversions).filter(([_, f]) => f > 0).length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {Object.entries(material.conversions).filter(([_, f]) => f > 0).map(([unit, factor]) => (
+                    <p key={unit} className="text-[9px] font-bold text-text-light uppercase tracking-widest">
+                      &bull; {(material.stockLevel * factor).toFixed(2)} {unit}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <span className="text-[8px] font-black text-text-light uppercase tracking-widest block mb-1 opacity-50">Costing Metric</span>
@@ -549,7 +751,7 @@ function MaterialViewModal({ material, suppliers, onClose }: { material: Materia
                   <p className="text-xs font-black text-text-main uppercase tracking-tight">{material.thickness || 'Not Specified'}</p>
                 </div>
                 <div className="p-5 bg-surface rounded-2xl border border-border/50">
-                  <span className="text-[8px] font-black text-text-light uppercase tracking-widest block mb-2 opacity-50">Substrate Type</span>
+                  <span className="text-[8px] font-black text-text-light uppercase tracking-widest block mb-2 opacity-50">Material Type</span>
                   <p className="text-xs font-black text-text-main uppercase tracking-tight">{material.materialType || 'Not Specified'}</p>
                 </div>
                 <div className="p-5 bg-surface rounded-2xl border border-border/50 col-span-2">

@@ -1,19 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,900;1,900&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Playfair Display", serif;
   
-  --color-brand: #0f172a; /* Slate 900 for a more premium, professional feel */
-  --color-brand-accent: #3b82f6; /* Blue 500 for active states */
-  --color-surface: #f8fafc; /* Slate 50 */
+  --color-brand: #0f172a; /* Slate 900 */
+  --color-brand-accent: #6366f1; /* Indigo 500 - more vibrant than standard blue */
+  --color-creative: #f43f5e; /* Rose 500 for secondary energy */
+  --color-vibrant: #10b981; /* Emerald 500 */
+  --color-surface: #fdfcfb; /* Warm paper-like surface */
   --color-paper: #ffffff;
-  --color-border: #e2e8f0; /* Slate 200 */
-  --color-border-strong: #cbd5e1; /* Slate 300 */
+  --color-border: #e2e8f0; 
+  --color-border-strong: #cbd5e1; 
   
-  --color-text-main: #0f172a; /* Slate 900 */
-  --color-text-muted: #475569; /* Slate 600 */
-  --color-text-light: #94a3b8; /* Slate 400 */
+  --color-text-main: #1a1a1a; 
+  --color-text-muted: #525252; 
+  --color-text-light: #a3a3a3; 
   
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;

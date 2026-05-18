@@ -40,6 +40,7 @@ export interface Material {
   printMethods?: string[];
   inkTypes?: string[];
   printingConsiderations?: string;
+  conversions?: Record<string, number>;
 }
 
 export interface Machine {
@@ -77,6 +78,10 @@ export interface Product {
   setupTime: number; // in minutes
   markupPercent: number;
   costingMethod: CostingMethod;
+  dimensions?: string;
+  minimumOrderQuantity?: number;
+  turnaroundTime?: string;
+  finishingOptions?: string[];
 }
 
 export interface QuoteItem {
@@ -96,6 +101,8 @@ export interface QuoteItem {
   discountValue?: number;
   basePrice?: number;
   totalPrice: number;
+  startNumber?: string;
+  endNumber?: string;
 }
 
 export interface PricingSettings {
@@ -131,6 +138,7 @@ export interface CompanySettings {
   branchCode?: string;
   website?: string;
   logoUrl?: string;
+  jobCardPrefix?: string;
   // Messaging Templates
   quoteEmailTemplate?: string;
   quoteWhatsappTemplate?: string;
@@ -174,6 +182,9 @@ export interface NCRBook {
   binding: string;
   print: string;
   options: string[];
+  paperWeight?: string;
+  coverType?: string;
+  turnaroundTime?: string;
   pricingGrid: NCRPricingTier[];
   status: 'Active' | 'Archived';
   createdAt: number;
@@ -195,6 +206,8 @@ export interface Package {
   savings: number;
   savingsPercent: number;
   category: string;
+  leadTime?: string;
+  targetAudience?: string;
   status: 'Active' | 'Inactive';
   createdAt: number;
 }
@@ -213,6 +226,9 @@ export interface LithoProduct {
   size: string;
   paperType: string;
   finishing?: string;
+  colorProfile?: string;
+  bleedRequirement?: string;
+  turnaroundTime?: string;
   pricingGrid: LithoPricingTier[];
   status: 'Active' | 'Archived';
   createdAt: number;
@@ -233,6 +249,25 @@ export interface PurchaseOrder {
   totalCost: number;
 }
 
+export interface JobTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  productName: string;
+  departmentId?: string;
+  items?: QuoteItem[];
+  ncrDetails?: {
+    paperColors: string;
+    startNumber: string;
+    endNumber: string;
+    perforationPosition?: string;
+    bindingType?: string;
+    bindingPosition?: string;
+  };
+  notes?: string;
+  createdAt: number;
+}
+
 export interface Job {
   id: string;
   jobNumber: string;
@@ -248,7 +283,13 @@ export interface Job {
     status: 'Pending' | 'Approved' | 'Changes Requested';
     version: number;
     uploadedAt: number;
-    feedback?: string;
+    feedback?: string; // Kept for legacy compatibility
+    comments?: {
+      id: string;
+      text: string;
+      author: 'Client' | 'Staff' | 'System';
+      createdAt: number;
+    }[];
   }[];
   items?: QuoteItem[];
   total?: number;

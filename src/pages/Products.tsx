@@ -191,7 +191,11 @@ function ProductModal({ product, onClose }: { product: Product | null, onClose: 
     setupTime: product?.setupTime || 0,
     markupPercent: product?.markupPercent ?? 40,
     defaultMachineId: product?.defaultMachineId || '',
-    defaultMaterialId: product?.defaultMaterialId || ''
+    defaultMaterialId: product?.defaultMaterialId || '',
+    dimensions: product?.dimensions || '',
+    minimumOrderQuantity: product?.minimumOrderQuantity || 1,
+    turnaroundTime: product?.turnaroundTime || '',
+    finishingOptions: product?.finishingOptions || [],
   });
 
   const [showGuidedNextStep, setShowGuidedNextStep] = useState(false);
@@ -317,6 +321,52 @@ function ProductModal({ product, onClose }: { product: Product | null, onClose: 
                   value={formData.markupPercent}
                   onChange={(e) => setFormData({ ...formData, markupPercent: Number(e.target.value) })}
                   className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Dimensions / Size Limits</label>
+                <input 
+                  type="text"
+                  value={formData.dimensions}
+                  onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
+                  className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand"
+                  placeholder="e.g. Max 1.3m width"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Turnaround Time</label>
+                <input 
+                  type="text"
+                  value={formData.turnaroundTime}
+                  onChange={(e) => setFormData({ ...formData, turnaroundTime: e.target.value })}
+                  className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand"
+                  placeholder="e.g. 2-3 business days"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Min. Order Qty</label>
+                <input 
+                  type="number"
+                  value={formData.minimumOrderQuantity}
+                  onChange={(e) => setFormData({ ...formData, minimumOrderQuantity: Number(e.target.value) })}
+                  className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand"
+                  min="1"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-text-light uppercase tracking-widest mb-2">Finishing Options (comma separated)</label>
+                <input 
+                  type="text"
+                  value={formData.finishingOptions?.join(', ')}
+                  onChange={(e) => setFormData({ ...formData, finishingOptions: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                  className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand"
+                  placeholder="e.g. Laminating, Eyelets, Hemming"
                 />
               </div>
             </div>

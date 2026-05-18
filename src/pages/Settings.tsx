@@ -22,6 +22,7 @@ const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   branchCode: '',
   website: '',
   logoUrl: '',
+  jobCardPrefix: 'Jobcard',
   quoteEmailTemplate: `Hi {{clientName}},\n\nHere is your quote {{quoteNumber}} from {{companyName}}.\n\nSummary:\n{{itemsSummary}}\n\nTotal: {{totalAmount}}\n\nYou can view and approve the quote here: {{approvalUrl}}\n\nRegards,\n{{companyName}}`,
   quoteWhatsappTemplate: `Hi {{clientName}},\n\nHere is your quote {{quoteNumber}} from {{companyName}}.\n\nTotal: {{totalAmount}}\n\nView here: {{approvalUrl}}`,
   jobEmailTemplate: `Hi {{clientName}},\n\nUpdate on your order {{jobNumber}} from {{companyName}}:\n\nCurrent Stage: {{jobStage}}\nProduct: {{productName}}\nEstimated Completion: {{dueDate}}\n\nTrack your order status here: {{trackingUrl}}\n\nRegards,\n{{companyName}}`,
@@ -208,6 +209,17 @@ export default function SettingsPage() {
                       className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-border rounded-2xl font-bold focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all"
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-text-light uppercase tracking-widest ml-1">Job Card Prefix</label>
+                  <input 
+                    type="text" 
+                    value={company.jobCardPrefix || ''}
+                    onChange={(e) => setCompany({ ...company, jobCardPrefix: e.target.value })}
+                    placeholder="Jobcard"
+                    className="w-full px-6 py-4 bg-gray-50 border border-border rounded-2xl font-bold focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all"
+                  />
+                  <p className="text-[8px] font-bold text-text-muted italic px-2 uppercase tracking-tighter">Affects newly created jobs (e.g. {company.jobCardPrefix || 'Jobcard'}-2026-001)</p>
                 </div>
               </div>
             </div>

@@ -162,7 +162,7 @@ export default function Quotes() {
           <div className="absolute inset-0 grid-structure opacity-[0.03] pointer-events-none" />
           <div className="relative z-10">
             <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-2">Total Pipeline</p>
-            <h3 className="text-3xl font-black text-text-main tracking-tighter tabular-nums italic">R{stats.total.toLocaleString()}</h3>
+            <h3 className="text-3xl font-black text-text-main tracking-tighter tabular-nums italic font-serif">R{stats.total.toLocaleString()}</h3>
           </div>
           <div className="w-14 h-14 bg-brand-accent/5 rounded-[1.5rem] flex items-center justify-center text-brand-accent group-hover:scale-110 transition-all relative z-10 shadow-sm border border-brand-accent/10">
             <DollarSign size={24} />
@@ -178,7 +178,7 @@ export default function Quotes() {
           <div className="absolute inset-0 grid-structure opacity-[0.03] pointer-events-none" />
           <div className="relative z-10">
             <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-2">Revenue Realized</p>
-            <h3 className="text-3xl font-black text-emerald-500 tracking-tighter tabular-nums italic">R{stats.accepted.toLocaleString()}</h3>
+            <h3 className="text-3xl font-black text-emerald-500 tracking-tighter tabular-nums italic font-serif">R{stats.accepted.toLocaleString()}</h3>
           </div>
           <div className="w-14 h-14 bg-emerald-50 rounded-[1.5rem] flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-all relative z-10 shadow-sm border border-emerald-100">
             <CheckCircle2 size={24} />
@@ -194,7 +194,7 @@ export default function Quotes() {
           <div className="absolute inset-0 grid-structure opacity-[0.03] pointer-events-none" />
           <div className="relative z-10">
             <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-2">Active Proposals</p>
-            <h3 className="text-3xl font-black text-brand tracking-tighter tabular-nums italic">{stats.pending} Units</h3>
+            <h3 className="text-3xl font-black text-brand tracking-tighter tabular-nums italic font-serif">{stats.pending} Units</h3>
           </div>
           <div className="w-14 h-14 bg-blue-50 rounded-[1.5rem] flex items-center justify-center text-brand group-hover:scale-110 transition-all relative z-10 shadow-sm border border-blue-100">
             <TrendingUp size={24} />
@@ -415,7 +415,7 @@ export default function Quotes() {
                     <div className="w-24 h-24 bg-surface text-text-light rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner border border-border/50 group hover:scale-110 transition-transform duration-700">
                       <AlertCircle size={40} className="group-hover:rotate-12 transition-transform" />
                     </div>
-                    <p className="text-xl font-black text-text-main tracking-tighter uppercase italic">Registry Empty</p>
+                    <p className="text-xl font-black text-text-main tracking-tighter uppercase italic font-serif">Registry Empty</p>
                     <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-2">Awaiting system initialization or user input</p>
                     <button 
                       onClick={() => setIsModalOpen(true)}

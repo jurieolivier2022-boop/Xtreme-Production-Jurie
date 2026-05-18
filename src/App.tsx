@@ -19,6 +19,7 @@ import Jobs from '@/src/pages/Jobs';
 import ProductionBoard from '@/src/pages/ProductionBoard';
 import Machines from '@/src/pages/Machines';
 import Inventory from '@/src/pages/Inventory';
+import InventoryRegistryHub from '@/src/pages/InventoryRegistryHub';
 import Purchasing from '@/src/pages/Purchasing';
 import Reports from '@/src/pages/Reports';
 import OrderHistory from '@/src/pages/OrderHistory';
@@ -38,10 +39,6 @@ function QuoteRedirect() {
 }
 
 export default function App() {
-  useEffect(() => {
-    console.log('[DEBUG] App mounted, window.location:', window.location.href);
-  }, []);
-
   return (
     <>
       <Toaster position="top-right" expand={false} richColors />
@@ -54,6 +51,7 @@ export default function App() {
       <Route element={<MainLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/clients" element={<Clients />} />
+        <Route path="/inventory-registry" element={<InventoryRegistryHub />} />
         <Route path="/materials" element={<Materials />} />
         <Route path="/suppliers" element={<Suppliers />} />
         <Route path="/products" element={<Products />} />

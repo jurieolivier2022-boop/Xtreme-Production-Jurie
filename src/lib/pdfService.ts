@@ -109,7 +109,9 @@ export const generateJobCardPDF = (job: Job, client: Client | undefined, company
   // Items Table
   const tableData = (job.items || []).map((item, idx) => [
     (idx + 1).toString(),
-    item.description,
+    item.startNumber || item.endNumber 
+      ? `${item.description}\n(Numbering: ${item.startNumber ?? ''} to ${item.endNumber ?? ''})`
+      : item.description,
     item.length?.toString() || '-',
     item.width?.toString() || '-',
     item.type || '-',
@@ -227,19 +229,30 @@ export const generateQuotePDF = (quote: Quote, client: Client | undefined, compa
   doc.text(new Date(quote.createdAt).toLocaleDateString('en-ZA'), 195, 75, { align: 'right' });
 
   // Items Table
-  const tableData = quote.items.map((item, idx) => [
-    (idx + 1).toString(),
-    item.description,
-    item.length?.toString() || '-',
-    item.width?.toString() || '-',
-    item.type || '-',
-    item.quantity.toString(),
-    formatCurrency(item.unitCost).replace('ZAR', '').trim(),
-    '0.00%',
-    '15.00',
-    formatCurrency(item.totalPrice * 0.15).replace('ZAR', '').trim(),
-    formatCurrency(item.totalPrice).replace('ZAR', '').trim()
-  ]);
+  const tableData = quote.items.map((item, idx) => {
+    let discStr = '0.00%';
+    if (item.discountValue) {
+      discStr = item.discountType === 'amount' 
+        ? `R${item.discountValue.toFixed(2)}` 
+        : `${item.discountValue.toFixed(2)}%`;
+    }
+    
+    return [
+      (idx + 1).toString(),
+      item.startNumber || item.endNumber 
+        ? `${item.description}\n(Numbering: ${item.startNumber ?? ''} to ${item.endNumber ?? ''})`
+        : item.description,
+      item.length?.toString() || '-',
+      item.width?.toString() || '-',
+      item.type || '-',
+      item.quantity.toString(),
+      formatCurrency(item.basePrice ? item.basePrice / item.quantity : item.unitCost).replace('ZAR', '').trim(),
+      discStr,
+      '15.00',
+      formatCurrency(item.totalPrice * 0.15).replace('ZAR', '').trim(),
+      formatCurrency(item.totalPrice).replace('ZAR', '').trim()
+    ];
+  });
 
   autoTable(doc, {
     startY: 90,

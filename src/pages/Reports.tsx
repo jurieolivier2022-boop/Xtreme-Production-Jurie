@@ -68,7 +68,7 @@ export default function Reports() {
     <div className="flex flex-col gap-10 animate-in fade-in duration-700">
       <header className="flex items-end justify-between">
         <div className="flex flex-col">
-          <h2 className="text-4xl font-black text-text-main tracking-tighter uppercase italic">Institutional Intelligence</h2>
+          <h2 className="text-4xl font-black text-text-main tracking-tighter uppercase italic font-serif">Institutional Intelligence</h2>
           <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-3">Advanced financial performance metrics</p>
         </div>
         
@@ -158,7 +158,7 @@ export default function Reports() {
         <div className="lg:col-span-2 card-minimal p-8 overflow-hidden relative group">
           <div className="absolute inset-0 grid-structure opacity-[0.015] pointer-events-none" />
           <div className="flex items-center justify-between mb-10 relative z-10">
-            <h3 className="text-lg font-black text-text-main uppercase tracking-tight italic">Performance Vectors</h3>
+            <h3 className="text-lg font-black text-text-main uppercase tracking-tight italic font-serif">Performance Vectors</h3>
             <div className="flex gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-brand shadow-lg shadow-blue-200" />
@@ -211,7 +211,7 @@ export default function Reports() {
 
         <div className="card-minimal p-8 overflow-hidden relative">
           <div className="absolute inset-0 grid-structure opacity-[0.015] pointer-events-none" />
-          <h3 className="text-lg font-black text-text-main uppercase tracking-tight italic mb-10 relative z-10">Entity Distribution</h3>
+          <h3 className="text-lg font-black text-text-main uppercase tracking-tight italic mb-10 relative z-10 font-serif">Entity Distribution</h3>
           <div className="h-[350px] relative z-10">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={clientData} layout="vertical" margin={{ left: -20 }}>

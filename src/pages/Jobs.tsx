@@ -160,7 +160,7 @@ export default function Jobs() {
     <div className="flex flex-col gap-10 animate-in fade-in duration-700">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-4xl font-black text-text-main tracking-tighter uppercase italic">Production Registry</h2>
+          <h2 className="text-4xl font-black text-text-main tracking-tighter uppercase italic font-serif">Production Registry</h2>
           <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-2">Historical and active job pipeline</p>
         </div>
         <button 
@@ -494,7 +494,7 @@ export default function Jobs() {
                     <div className="w-24 h-24 bg-surface text-text-light rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner border border-border/50 group hover:scale-110 transition-transform duration-700">
                       <AlertTriangle size={40} className="group-hover:rotate-12 transition-transform" />
                     </div>
-                    <p className="text-xl font-black text-text-main tracking-tighter uppercase italic">No Matches Found</p>
+                    <p className="text-xl font-black text-text-main tracking-tighter uppercase italic font-serif">No Matches Found</p>
                     <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-2">Adjust your parameters or reset the matrix</p>
                     <button 
                       onClick={() => {

@@ -301,6 +301,9 @@ function RegisterModal({ product, onClose }: { product: LithoProduct | null, onC
     size: product?.size || '90x50mm',
     paperType: product?.paperType || '350gsm Silk',
     finishing: product?.finishing || '',
+    colorProfile: product?.colorProfile || 'CMYK',
+    bleedRequirement: product?.bleedRequirement || '3mm',
+    turnaroundTime: product?.turnaroundTime || '5-7 business days',
     status: product?.status || 'Active',
     pricingGrid: product?.pricingGrid || [{ quantity: 100, cost: 0, sell: 0 }]
   });
@@ -436,6 +439,39 @@ function RegisterModal({ product, onClose }: { product: LithoProduct | null, onC
                    onChange={(e) => setFormData({ ...formData, finishing: e.target.value })}
                    className="w-full px-7 py-5 bg-gray-50 border border-border rounded-[1.5rem] font-black focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent transition-all"
                    placeholder="e.g. Matt Lamination"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3 ml-1">Color Profile</label>
+                <input 
+                   type="text"
+                   value={formData.colorProfile}
+                   onChange={(e) => setFormData({ ...formData, colorProfile: e.target.value })}
+                   className="w-full px-7 py-5 bg-gray-50 border border-border rounded-[1.5rem] font-black focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent transition-all"
+                   placeholder="e.g. CMYK Fogra39"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3 ml-1">Bleed Requirement</label>
+                <input 
+                   type="text"
+                   value={formData.bleedRequirement}
+                   onChange={(e) => setFormData({ ...formData, bleedRequirement: e.target.value })}
+                   className="w-full px-7 py-5 bg-gray-50 border border-border rounded-[1.5rem] font-black focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent transition-all"
+                   placeholder="e.g. 3mm all rounded"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-text-light uppercase tracking-[0.3em] mb-3 ml-1">Turnaround Time</label>
+                <input 
+                   type="text"
+                   value={formData.turnaroundTime}
+                   onChange={(e) => setFormData({ ...formData, turnaroundTime: e.target.value })}
+                   className="w-full px-7 py-5 bg-gray-50 border border-border rounded-[1.5rem] font-black focus:ring-4 focus:ring-brand-accent/5 focus:border-brand-accent transition-all"
+                   placeholder="e.g. 5-7 business days"
                 />
               </div>
             </div>

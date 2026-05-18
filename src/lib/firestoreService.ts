@@ -52,47 +52,43 @@ interface FirestoreErrorInfo {
  * Improved implementation to be more robust.
  */
 function safeJsonStringify(obj: any) {
-  try {
-    const seen = new WeakSet();
-    return JSON.stringify(obj, (key, value) => {
-      if (typeof value === 'object' && value !== null) {
-        if (seen.has(value)) {
-          return '[Circular]';
-        }
-        seen.add(value);
+  const cache = new Set();
+  const stringified = JSON.stringify(obj, (key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (cache.has(value)) {
+        return '[Circular]';
       }
-      return value;
-    }, 2);
-  } catch (e) {
-    try {
-      // Fallback for objects that might throw on property access
-      return String(obj);
-    } catch (e2) {
-      return '[Unstringifiable Object]';
+      cache.add(value);
     }
-  }
+    return value;
+  }, 2);
+  cache.clear();
+  return stringified;
 }
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  // Extract only needed properties from error to avoid serializing complex Firebase objects
-  const errorMessage = error instanceof Error 
-    ? error.message 
-    : (error && typeof error === 'object' && 'message' in error)
-      ? String((error as any).message)
-      : String(error);
+  // Extract ONLY string/primitive properties to ensure we never touch circular structures in internal objects
+  let errorMessage = 'Unknown error';
+  let errorCode = 'unknown-code';
 
-  const errorCode = (error && typeof error === 'object' && 'code' in error)
-    ? String((error as any).code)
-    : undefined;
+  if (error instanceof Error) {
+    errorMessage = error.message;
+    if ('code' in error) errorCode = String((error as any).code);
+  } else if (typeof error === 'object' && error !== null) {
+    errorMessage = (error as any).message || String(error);
+    errorCode = (error as any).code || 'unknown-code';
+  } else {
+    errorMessage = String(error);
+  }
 
   const errInfo: FirestoreErrorInfo = {
     error: errorMessage,
     authInfo: {
-      userId: auth.currentUser?.uid ?? null,
-      email: auth.currentUser?.email ?? null,
-      emailVerified: auth.currentUser?.emailVerified ?? null,
-      isAnonymous: auth.currentUser?.isAnonymous ?? null,
-      tenantId: auth.currentUser?.tenantId ?? null,
+      userId: auth.currentUser?.uid || null,
+      email: auth.currentUser?.email || null,
+      emailVerified: auth.currentUser?.emailVerified || null,
+      isAnonymous: auth.currentUser?.isAnonymous || null,
+      tenantId: auth.currentUser?.tenantId || null,
       providerInfo: auth.currentUser?.providerData?.map(provider => ({
         providerId: provider.providerId,
         email: provider.email,
@@ -102,14 +98,17 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path
   };
   
-  // Use a safer stringify for log output to ensure we don't crash the error handler itself
-  const safeErrInfo = safeJsonStringify(errInfo);
-  
   // Log a simplified version first to console to be safe
-  console.error(`Firestore Error [${operationType}] at ${path}:`, errorMessage, errorCode ? `(Code: ${errorCode})` : '');
+  console.error(`Firestore Error [${operationType}] at ${path}:`, errorMessage, `(Code: ${errorCode})`);
   
-  // Only throw the stringified version if we really have to (for system diagnosis)
-  throw new Error(safeErrInfo);
+  try {
+    // Only throw the stringified version if we really have to (for system diagnosis)
+    const safeErrInfo = safeJsonStringify(errInfo);
+    throw new Error(safeErrInfo);
+  } catch (stringifyError) {
+    // Ultimate fallback if even the simple errInfo failed to stringify
+    throw new Error(`{"error":"${errorMessage.replace(/"/g, '\\"')}", "operationType":"${operationType}", "path":"${path}"}`);
+  }
 }
 
 export function useCollection<T>(collectionPath: string, constraints: QueryConstraint[] = []) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, Reorder, AnimatePresence } from 'motion/react';
 import { X, Plus, Trash2, Calculator, AlertCircle, Package as PackageIcon, Book, Layers, Box, Calendar, Clock, CheckCircle2, Image as ImageIcon, Share2, Send, MessageCircle, ExternalLink, Download, Printer, Mail, Upload, FileText, Camera, GripVertical, Loader2 } from 'lucide-react';
-import { Job, QuoteItem, Client, Product, PricingSettings, Material, Machine, NCRBook, Package, JobStage, JobPriority, Department, CompanySettings, LithoProduct, Quote } from '../types';
+import { Job, QuoteItem, Client, Product, PricingSettings, Material, Machine, NCRBook, Package, JobStage, JobPriority, Department, CompanySettings, LithoProduct, Quote, JobTemplate } from '../types';
 import { createDocument, updateDocument, useCollection, getNextSequence } from '../lib/firestoreService';
 import { calculateQuoteTotals, DEFAULT_PRICING_SETTINGS, getActivePricingSettings } from '../lib/pricingService';
 import { cn, sqMmToSqM } from '../lib/utils';
@@ -46,6 +46,7 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
   const { data: settingsList } = useCollection<PricingSettings>('settings');
   const { data: companySettingsList } = useCollection<CompanySettings>('company_settings');
   const { data: quotes } = useCollection<Quote>('quotes');
+  const { data: templates } = useCollection<JobTemplate>('job_templates');
   
   const settings = getActivePricingSettings(settingsList);
   const company = companySettingsList[0];
@@ -53,6 +54,56 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  const [templateName, setTemplateName] = useState('');
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim()) {
+      toast.error('Please enter a template name');
+      return;
+    }
+    try {
+      await createDocument('job_templates', {
+        name: templateName,
+        productName: formData.productName || 'Untitled Job',
+        departmentId: formData.departmentId || '',
+        items: items || [],
+        ncrDetails: formData.ncrDetails,
+        notes: formData.notes,
+        createdAt: Date.now()
+      });
+      toast.success('Template saved successfully');
+      setShowSaveTemplate(false);
+      setTemplateName('');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to save template');
+    }
+  };
+
+  const handleApplyTemplate = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    if (!templateId) return;
+    const template = templates.find(t => t.id === templateId);
+    if (!template) return;
+    
+    setFormData(prev => ({
+      ...prev,
+      productName: template.productName,
+      departmentId: template.departmentId || prev.departmentId,
+      ncrDetails: template.ncrDetails || prev.ncrDetails,
+      notes: template.notes || prev.notes,
+    }));
+    if (template.items && template.items.length > 0) {
+      setItems(template.items.map(item => ({
+        ...item,
+        id: Math.random().toString(36).substr(2, 9)
+      })));
+    }
+    toast.success('Template applied');
+  };
 
   const [formData, setFormData] = useState<Partial<Job>>({
     jobNumber: 'Pending...',
@@ -80,6 +131,7 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'artwork' | 'items'>('details');
   const [uploadingFiles, setUploadingFiles] = useState<{ id: string; name: string; progress: number }[]>([]);
+  const [newComments, setNewComments] = useState<Record<string, string>>({});
   const artworkFileRef = React.useRef<HTMLInputElement>(null);
 
   const processFiles = (files: FileList | File[]) => {
@@ -118,7 +170,15 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
             name: file.name.split('.')[0].replace(/[-_]/g, ' '),
             status: 'Pending' as const,
             version: (artwork.length + 1),
-            uploadedAt: Date.now()
+            uploadedAt: Date.now(),
+            comments: [
+              {
+                id: Math.random().toString(36).substr(2, 9),
+                text: `Artwork version ${artwork.length + 1} uploaded by staff.`,
+                author: 'System' as const,
+                createdAt: Date.now()
+              }
+            ]
           };
           
           setFormData(prev => ({
@@ -549,6 +609,35 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
     }
   };
 
+  const handleAddComment = (artId: string) => {
+    const text = newComments[artId];
+    if (!text?.trim()) return;
+
+    const newArt = [...(formData.artwork || [])];
+    const artIdx = newArt.findIndex(a => a.id === artId);
+    if (artIdx !== -1) {
+      const art = newArt[artIdx];
+      const newComment = {
+        id: Math.random().toString(36).substr(2, 9),
+        text: text.trim(),
+        author: 'Staff' as const,
+        createdAt: Date.now()
+      };
+      
+      // Update artwork status to Pending if it was Changes Requested
+      const newStatus = art.status === 'Changes Requested' ? 'Pending' as const : art.status;
+      
+      newArt[artIdx] = {
+        ...art,
+        status: newStatus,
+        comments: [...(art.comments || []), newComment]
+      };
+      setFormData({ ...formData, artwork: newArt });
+      setNewComments(prev => ({ ...prev, [artId]: '' }));
+      toast.success('Comment added to artwork history');
+    }
+  };
+
   const handleSave = async () => {
     console.log('Button Click: Commit Job to Registry', { isEdit: !!job?.id });
     setIsSaving(true);
@@ -574,7 +663,8 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
       } else {
         const year = new Date().getFullYear();
         const sequence = await getNextSequence(`jobs_${year}`);
-        finalData.jobNumber = `Jobcard-${year}-${(sequence || 1).toString().padStart(3, '0')}`;
+        const prefix = company?.jobCardPrefix || 'Jobcard';
+        finalData.jobNumber = `${prefix}-${year}-${(sequence || 1).toString().padStart(3, '0')}`;
         await createDocument('jobs', finalData as any);
       }
       setShowSuccess(true);
@@ -607,7 +697,20 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-10">
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-4 gap-6">
+            <div className="col-span-1">
+              <label className="block text-[10px] font-black text-text-light uppercase tracking-widest mb-2">Load Configuration</label>
+              <select 
+                value={selectedTemplateId}
+                onChange={(e) => handleApplyTemplate(e.target.value)}
+                className="w-full px-5 py-3 bg-purple-50/50 border border-purple-200 rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 transition-all text-purple-700"
+              >
+                <option value="">Select a template...</option>
+                {templates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
             <div className="col-span-1">
               <label className="block text-[10px] font-black text-text-light uppercase tracking-widest mb-2">Base on Quote (Optional)</label>
               <select 
@@ -937,33 +1040,34 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
                         className="bg-white p-6 rounded-3xl border border-border group relative overflow-hidden shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
                       >
                         <div className="flex gap-6">
-                          <div className="flex flex-col items-center justify-center text-text-light opacity-20 group-hover:opacity-100 transition-opacity">
+                          <div className="flex flex-col items-center justify-center text-text-light opacity-20 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
                             <GripVertical size={20} />
                           </div>
 
                           <div 
-                            className="w-28 h-28 bg-surface rounded-2xl overflow-hidden flex-shrink-0 border border-border/50 flex items-center justify-center cursor-pointer hover:brightness-95 transition-all relative group/img"
+                            className="w-32 h-32 bg-surface rounded-[2rem] overflow-hidden flex-shrink-0 border-2 border-border/50 flex items-center justify-center cursor-pointer hover:brightness-95 hover:border-brand/30 transition-all relative group/img shadow-inner"
                             onClick={(e) => { e.stopPropagation(); window.open(art.url, '_blank'); }}
                           >
                             {art.url.startsWith('data:application/pdf') ? (
-                              <div className="flex flex-col items-center gap-1">
-                                <FileText size={36} className="text-red-500" />
-                                <span className="text-[8px] font-black text-text-light uppercase tracking-tighter">PDF PROOF</span>
+                              <div className="flex flex-col items-center gap-2">
+                                <FileText size={40} className="text-red-500" />
+                                <span className="text-[9px] font-black text-text-light uppercase tracking-tighter">PDF PROOF</span>
                               </div>
                             ) : (
                               <img src={art.url} alt={art.name} className="w-full h-full object-cover" />
                             )}
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
-                              <ExternalLink size={24} className="text-white" />
+                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity backdrop-blur-sm">
+                              <ExternalLink size={24} className="text-white drop-shadow-md" />
                             </div>
-                            <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-[8px] font-black text-white uppercase tracking-widest">
+                            <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-md px-2 py-1 rounded-xl text-[9px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-black/20">
                               v{art.version}.0
                             </div>
                           </div>
                           
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
                             <div className="flex items-start justify-between mb-4">
-                              <div className="flex-1">
+                              <div className="flex-1 pr-6">
+                                <label className="block text-[8px] font-black text-text-light uppercase tracking-widest mb-1">File Name</label>
                                 <input 
                                   type="text"
                                   value={art.name}
@@ -975,54 +1079,150 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
                                       setFormData({ ...formData, artwork: newArt });
                                     }
                                   }}
-                                  className="text-sm font-black text-text-main truncate uppercase tracking-tight bg-transparent border-none p-0 focus:ring-0 w-full italic"
+                                  className="text-base font-black text-text-main truncate uppercase tracking-tight bg-transparent border-b-2 border-transparent hover:border-border focus:border-brand p-0 pb-1 focus:ring-0 w-full italic transition-colors"
                                 />
-                                <div className="flex items-center gap-3 mt-1">
-                                  <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{new Date(art.uploadedAt).toLocaleString()}</p>
+                                <div className="flex items-center gap-3 mt-2">
+                                  <div className="flex items-center gap-1">
+                                    <Clock size={10} className="text-text-muted" />
+                                    <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{new Date(art.uploadedAt).toLocaleString()}</p>
+                                  </div>
                                   <div className="w-1 h-1 bg-border rounded-full" />
-                                  <p className="text-[9px] font-bold text-brand uppercase tracking-widest">Identity: {art.id}</p>
+                                  <p className="text-[8px] font-black text-text-light uppercase tracking-[0.2em] bg-surface px-2 py-0.5 rounded-md">ID: {art.id}</p>
                                 </div>
                               </div>
                               <div className="flex flex-col items-end gap-2">
-                                <select 
-                                  value={art.status}
+                                <label className="block text-[8px] font-black text-text-light uppercase tracking-widest">Client Decision</label>
+                                <div className="flex bg-surface p-1 rounded-2xl border border-border/50">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newArt = [...(formData.artwork || [])];
+                                      const artIdx = newArt.findIndex(a => a.id === art.id);
+                                      if (artIdx !== -1) {
+                                        newArt[artIdx] = { ...art, status: 'Pending' };
+                                        setFormData({ ...formData, artwork: newArt });
+                                      }
+                                    }}
+                                    className={cn(
+                                      "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                                      art.status === 'Pending' ? "bg-amber-100 text-amber-700 shadow-sm" : "text-text-light hover:text-text-main hover:bg-gray-100"
+                                    )}
+                                  >
+                                    Pending
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newArt = [...(formData.artwork || [])];
+                                      const artIdx = newArt.findIndex(a => a.id === art.id);
+                                      if (artIdx !== -1) {
+                                        newArt[artIdx] = { ...art, status: 'Changes Requested' };
+                                        setFormData({ ...formData, artwork: newArt });
+                                      }
+                                    }}
+                                    className={cn(
+                                      "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                                      art.status === 'Changes Requested' ? "bg-red-500 text-white shadow-sm shadow-red-200" : "text-text-light hover:text-text-main hover:bg-gray-100"
+                                    )}
+                                  >
+                                    Revisions
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newArt = [...(formData.artwork || [])];
+                                      const artIdx = newArt.findIndex(a => a.id === art.id);
+                                      if (artIdx !== -1) {
+                                        newArt[artIdx] = { ...art, status: 'Approved' };
+                                        setFormData({ ...formData, artwork: newArt });
+                                      }
+                                    }}
+                                    className={cn(
+                                      "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all gap-1 flex items-center",
+                                      art.status === 'Approved' ? "bg-emerald-500 text-white shadow-sm shadow-emerald-200" : "text-text-light hover:text-text-main hover:bg-gray-100"
+                                    )}
+                                  >
+                                    <CheckCircle2 size={12} className={art.status === 'Approved' ? 'text-white' : 'hidden'}/>
+                                    Approved
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div className="relative">
+                                <MessageCircle size={14} className="absolute left-4 top-4 text-text-light opacity-40" />
+                                <textarea 
+                                  value={art.feedback || ''}
                                   onChange={(e) => {
                                     const newArt = [...(formData.artwork || [])];
                                     const artIdx = newArt.findIndex(a => a.id === art.id);
                                     if (artIdx !== -1) {
-                                      newArt[artIdx] = { ...art, status: e.target.value as any };
+                                      newArt[artIdx] = { ...art, feedback: e.target.value };
                                       setFormData({ ...formData, artwork: newArt });
                                     }
                                   }}
-                                  className={cn(
-                                    "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer shadow-sm",
-                                    art.status === 'Approved' ? "bg-emerald-500 text-white border-emerald-600" :
-                                    art.status === 'Changes Requested' ? "bg-red-500 text-white border-red-600" :
-                                    "bg-amber-50 text-amber-600 border-amber-100"
-                                  )}
-                                >
-                                  <option value="Pending">Waiting for feedback</option>
-                                  <option value="Approved">Artwork Approved</option>
-                                  <option value="Changes Requested">Revisions Required</option>
-                                </select>
+                                  placeholder="Internal design notes or client summary..."
+                                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-border/60 rounded-2xl text-[10px] font-bold text-text-main placeholder:text-text-light/60 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all resize-none h-14 hover:h-20 focus:h-20 focus:bg-white delay-75"
+                                />
                               </div>
-                            </div>
 
-                            <div className="relative">
-                              <MessageCircle size={14} className="absolute left-4 top-4 text-text-light opacity-40" />
-                              <textarea 
-                                value={art.feedback || ''}
-                                onChange={(e) => {
-                                  const newArt = [...(formData.artwork || [])];
-                                  const artIdx = newArt.findIndex(a => a.id === art.id);
-                                  if (artIdx !== -1) {
-                                    newArt[artIdx] = { ...art, feedback: e.target.value };
-                                    setFormData({ ...formData, artwork: newArt });
-                                  }
-                                }}
-                                placeholder="Transcription of client feedback or internal design notes..."
-                                className="w-full pl-11 pr-4 py-3 bg-surface/50 border border-border/60 rounded-2xl text-[10px] font-bold text-text-main placeholder:text-text-light/40 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all resize-none h-20"
-                              />
+                              {/* Comment Thread Display */}
+                              {(art.comments?.length || 0) > 0 && (
+                                <div className="bg-surface/50 rounded-2xl border border-border/50 p-4 space-y-3">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <MessageCircle size={10} className="text-brand" />
+                                    <span className="text-[8px] font-black text-text-light uppercase tracking-widest">Feedback History</span>
+                                  </div>
+                                  <div className="max-h-40 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                                    {art.comments?.map((comment) => (
+                                      <div 
+                                        key={comment.id}
+                                        className={cn(
+                                          "p-2.5 rounded-xl text-[10px] font-bold",
+                                          comment.author === 'Client' ? "bg-emerald-50 border border-emerald-100 mr-4" : 
+                                          comment.author === 'Staff' ? "bg-brand/5 border border-brand/10 ml-4" :
+                                          "bg-gray-50 border border-gray-100 italic opacity-60 text-center mx-4"
+                                        )}
+                                      >
+                                        <div className="flex justify-between items-center mb-1">
+                                          <span className="text-[7px] font-black uppercase tracking-widest opacity-60">
+                                            {comment.author} &bull; {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                          </span>
+                                        </div>
+                                        <p className="text-text-main leading-relaxed">{comment.text}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* New Comment Input for Staff */}
+                              <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                  <Send size={12} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-light opacity-40" />
+                                  <input 
+                                    type="text"
+                                    value={newComments[art.id] || ''}
+                                    onChange={(e) => setNewComments(prev => ({ ...prev, [art.id]: e.target.value }))}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleAddComment(art.id);
+                                      }
+                                    }}
+                                    placeholder="Add a feedback comment..."
+                                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-border shadow-sm rounded-xl text-[10px] font-bold text-text-main placeholder:text-text-light/40 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddComment(art.id)}
+                                  className="px-4 py-2 bg-brand text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-accent transition-all active:scale-95"
+                                >
+                                  Post
+                                </button>
+                              </div>
                             </div>
                           </div>
 
@@ -1033,13 +1233,13 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
                               const updatedArtwork = (formData.artwork || []).filter(a => a.id !== art.id);
                               setFormData({ ...formData, artwork: updatedArtwork });
                             }}
-                            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-text-light hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white shadow-lg border border-border rounded-xl"
+                            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-text-light hover:text-white hover:bg-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white shadow-lg border border-border rounded-[1rem] z-10"
                           >
                             <Trash2 size={16} />
                           </button>
                         </div>
                         {art.status === 'Approved' && (
-                          <div className="absolute top-0 right-0 py-1 px-4 bg-emerald-500 text-white text-[8px] font-black uppercase tracking-[0.2em] -rotate-12 translate-x-4 -translate-y-1 shadow-md">
+                          <div className="absolute top-0 right-0 py-1.5 px-6 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-[0.2em] -rotate-12 translate-x-5 -translate-y-1 shadow-lg shadow-emerald-500/20 z-0 border border-emerald-400">
                             Production Ready
                           </div>
                         )}
@@ -1230,6 +1430,26 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
                                   placeholder="Detail spec..."
                                   className="w-full bg-transparent border-none p-0 focus:ring-0 font-bold text-[10px] text-text-light italic"
                                 />
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex items-center gap-1 bg-blue-50/30 border border-blue-100/50 rounded-md p-1">
+                                    <input 
+                                      type="text"
+                                      placeholder="Start #"
+                                      value={item.startNumber || ''}
+                                      onChange={(e) => updateItem(idx, { startNumber: e.target.value })}
+                                      className="w-12 bg-transparent text-[8px] font-black text-blue-600 text-center focus:outline-none placeholder:text-blue-300"
+                                    />
+                                    <span className="text-[7px] text-blue-300">→</span>
+                                    <input 
+                                      type="text"
+                                      placeholder="End #"
+                                      value={item.endNumber || ''}
+                                      onChange={(e) => updateItem(idx, { endNumber: e.target.value })}
+                                      className="w-12 bg-transparent text-[8px] font-black text-blue-600 text-center focus:outline-none placeholder:text-blue-300"
+                                    />
+                                  </div>
+                                  <span className="text-[7px] font-black text-text-light/30 uppercase tracking-tighter italic">Sequential Sequence</span>
+                                </div>
                              </div>
                              {item.type === 'Product' && (
                                 <div className="space-y-2">
@@ -1502,6 +1722,13 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
                   </button>
                 </div>
               )}
+              <button 
+                onClick={() => setShowSaveTemplate(true)} 
+                type="button"
+                className="px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-purple-600 hover:bg-purple-50 border border-purple-200 transition-all mr-auto"
+              >
+                Save as Template
+              </button>
               <button onClick={onClose} disabled={isSaving || isProcessing} className="px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-text-muted hover:bg-surface border border-border/50 transition-all disabled:opacity-50">Abort Entry</button>
               <button 
                 onClick={handleSave} 
@@ -1526,6 +1753,44 @@ export default function JobModal({ isOpen, onClose, job }: JobModalProps) {
             </div>
             <h3 className="text-2xl font-black text-text-main tracking-tighter uppercase italic">Registry Updated</h3>
             <p className="text-[10px] font-black text-text-light uppercase tracking-[0.3em] mt-2">Production flow has been recalculated</p>
+          </div>
+        )}
+
+        {showSaveTemplate && (
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-[110] flex items-center justify-center p-6 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl shadow-2xl border border-border p-8 max-w-md w-full">
+              <h3 className="text-2xl font-black text-text-main tracking-tighter mb-2">Save as Template</h3>
+              <p className="text-xs text-text-light mb-6">Create a reusable template from this job configuration.</p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-text-light uppercase tracking-widest mb-2">Template Name</label>
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    placeholder="e.g., Standard Business Cards"
+                    className="w-full px-5 py-3 bg-gray-50 border border-border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 transition-all"
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4">
+                  <button 
+                    onClick={() => setShowSaveTemplate(false)}
+                    className="px-6 py-3 rounded-xl font-bold text-xs text-text-light hover:bg-gray-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSaveTemplate}
+                    disabled={!templateName.trim()}
+                    className="px-6 py-3 bg-purple-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-purple-200 hover:-translate-y-0.5 transition-all disabled:opacity-50"
+                  >
+                    Save Template
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

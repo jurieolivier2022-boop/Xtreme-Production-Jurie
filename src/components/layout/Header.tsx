@@ -17,56 +17,56 @@ export function Header({ title }: HeaderProps) {
     : user?.email?.charAt(0).toUpperCase() || 'AU';
   
   return (
-    <header className="h-24 bg-paper/80 backdrop-blur-xl border-b border-border/50 px-10 flex items-center justify-between sticky top-0 z-10 shrink-0">
-      <div className="animate-in fade-in slide-in-from-left-2 duration-500">
-        <h2 className="text-2xl font-black text-text-main tracking-tighter uppercase italic">{title}</h2>
-        <div className="flex items-center gap-4 mt-1">
-          <div className="flex items-center gap-2">
+    <header className="h-28 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-10 flex items-center justify-between sticky top-0 z-10 shrink-0">
+      <div className="animate-in fade-in slide-in-from-left-4 duration-700">
+        <h2 className="text-3xl font-black text-text-main tracking-tight uppercase italic font-serif leading-none">{title}</h2>
+        <div className="flex items-center gap-4 mt-2">
+          <div className="flex items-center gap-2.5">
             {isConnected === null ? (
-              <Loader2 className="w-1.5 h-1.5 animate-spin text-brand" />
+              <Loader2 className="w-2 h-2 animate-spin text-brand-accent" />
             ) : isConnected ? (
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]" />
             ) : (
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]" />
+              <div className="w-2 h-2 rounded-full bg-creative animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.5)]" />
             )}
             <p className={cn(
-              "text-[9px] font-black uppercase tracking-[0.2em]",
-              isConnected === false ? "text-red-500" : "text-text-light"
+              "text-[10px] font-black uppercase tracking-[0.3em]",
+              isConnected === false ? "text-creative" : "text-text-light"
             )}>
-              {isConnected === null ? 'Syncing Matrix...' : isConnected ? 'Operational Core' : 'Connection Interrupted'}
+              {isConnected === null ? 'Syncing...' : isConnected ? 'Operational' : 'Disconnected'}
             </p>
           </div>
-          <div className="w-1 h-1 bg-border rounded-full" />
-          <p className="text-[9px] font-black text-text-light/40 uppercase tracking-[0.2em]">Node-042</p>
+          <div className="w-1 h-1 bg-slate-200 rounded-full" />
+          <p className="text-[10px] font-black text-text-light/50 uppercase tracking-[0.3em]">Session-L6</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-10">
         <div className="relative group hidden xl:block">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-light group-focus-within:text-brand-accent transition-all group-focus-within:scale-110" size={16} />
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-text-light group-focus-within:text-brand-accent transition-all group-focus-within:scale-110" size={18} />
           <input 
             type="text" 
-            placeholder="System Search..." 
-            className="pl-12 pr-6 py-3 bg-surface/50 border border-border/60 rounded-2xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-[6px] focus:ring-brand-accent/5 focus:bg-paper focus:border-brand-accent/30 transition-all w-80 placeholder:text-text-light/50"
+            placeholder="Command Search..." 
+            className="pl-14 pr-8 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase tracking-widest focus:outline-none focus:ring-[8px] focus:ring-brand-accent/5 focus:bg-white focus:border-brand-accent/30 transition-all w-96 placeholder:text-text-light/40"
           />
         </div>
 
-        <div className="flex items-center gap-6 pl-8 border-l border-border/50">
-          <button className="relative p-2.5 text-text-light hover:text-text-main hover:bg-surface rounded-2xl transition-all group">
-            <Bell size={20} strokeWidth={2} className="group-hover:rotate-12 transition-transform" />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-brand-accent rounded-full ring-2 ring-paper shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
+        <div className="flex items-center gap-8 pl-10 border-l border-slate-100">
+          <button className="relative p-3 text-text-light hover:text-brand-accent hover:bg-slate-50 rounded-2xl transition-all group">
+            <Bell size={22} strokeWidth={2} className="group-hover:rotate-12 transition-transform" />
+            <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-creative rounded-full ring-4 ring-white shadow-[0_0_12px_rgba(244,63,94,0.6)] animate-pulse"></span>
           </button>
 
-          <div className="flex items-center gap-4 cursor-pointer p-1.5 pl-1.5 pr-4 rounded-2xl bg-surface/50 hover:bg-surface border border-transparent hover:border-border/60 transition-all group">
-            <div className="w-10 h-10 rounded-xl bg-brand text-white flex items-center justify-center font-black text-xs shadow-lg shadow-brand/10 transition-transform group-hover:scale-95 uppercase">
+          <div className="flex items-center gap-4 cursor-pointer p-2 pr-5 rounded-[1.5rem] bg-slate-50 hover:bg-white border border-transparent hover:border-slate-100 transition-all group shadow-sm hover:shadow-md">
+            <div className="w-12 h-12 rounded-2xl bg-brand text-white flex items-center justify-center font-black text-sm shadow-xl shadow-brand/10 transition-all group-hover:rotate-6 group-hover:scale-105 uppercase italic font-serif">
               {initials}
             </div>
             <div className="hidden lg:flex flex-col">
-              <span className="text-xs font-black text-text-main leading-none uppercase tracking-tight">
-                {user?.displayName || user?.email?.split('@')[0] || 'Guest User'}
+              <span className="text-sm font-black text-text-main leading-none uppercase tracking-tight italic font-serif">
+                {user?.displayName || user?.email?.split('@')[0] || 'Guest'}
               </span>
-              <span className="text-[9px] font-bold text-text-light uppercase tracking-widest mt-1">
-                {user ? 'Authenticated Access' : 'System Sentinel'}
+              <span className="text-[10px] font-bold text-creative uppercase tracking-[0.2em] mt-1.5 opacity-80">
+                {user ? 'Studio Access' : 'External'}
               </span>
             </div>
           </div>

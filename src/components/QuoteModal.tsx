@@ -388,7 +388,8 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
       const sequence = await getNextSequence(`jobs_${year}`);
       if (sequence === null) throw new Error("Failed to generate sequence");
       
-      const jobNumber = `Jobcard-${year}-${sequence.toString()}`;
+      const prefix = company?.jobCardPrefix || 'Jobcard';
+      const jobNumber = `${prefix}-${year}-${sequence.toString()}`;
       
       const jobData: Omit<Job, 'id'> = {
         jobNumber,
@@ -791,6 +792,26 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
                               />
                             </div>
 
+                            <div className="flex items-center gap-2 mt-1 w-full justify-end">
+                              <div className="flex items-center gap-1 bg-blue-50/50 border border-blue-100 rounded-lg p-1">
+                                <input 
+                                  type="text"
+                                  placeholder="Start #"
+                                  value={item.startNumber || ''}
+                                  onChange={(e) => updateItem(idx, { startNumber: e.target.value })}
+                                  className="w-14 bg-transparent text-[9px] font-bold text-blue-600 text-center focus:outline-none placeholder:text-blue-300"
+                                />
+                                <span className="text-[8px] text-blue-300">→</span>
+                                <input 
+                                  type="text"
+                                  placeholder="End #"
+                                  value={item.endNumber || ''}
+                                  onChange={(e) => updateItem(idx, { endNumber: e.target.value })}
+                                  className="w-14 bg-transparent text-[9px] font-bold text-blue-600 text-center focus:outline-none placeholder:text-blue-300"
+                                />
+                              </div>
+                            </div>
+
                             <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/30 w-full justify-end">
                               <span className="text-[9px] font-black text-brand-accent uppercase tracking-widest">Final:</span>
                               <span className="text-lg font-black text-brand-accent tabular-nums tracking-tight">
@@ -825,10 +846,27 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
               <div className="space-y-6">
                 <h3 className="text-[10px] font-black text-text-light uppercase tracking-[0.2em] border-b border-border/50 pb-4 italic">Financial Synopsis</h3>
                 <div className="space-y-5">
-                  <div className="flex items-center justify-between group">
-                    <span className="text-[10px] font-bold text-text-light uppercase tracking-widest">Base Sub-total</span>
-                    <span className="text-sm font-black text-text-main tabular-nums">R{totals.subtotal.toLocaleString()}</span>
-                  </div>
+                  {(totals as any).totalDiscount > 0 ? (
+                    <>
+                      <div className="flex items-center justify-between group">
+                        <span className="text-[10px] font-bold text-text-light uppercase tracking-widest">Base Sub-total</span>
+                        <span className="text-sm font-black text-text-main tabular-nums">R{(totals as any).baseSubtotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between group">
+                        <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Total Discount</span>
+                        <span className="text-sm font-black text-red-500 tabular-nums">- R{(totals as any).totalDiscount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between group">
+                        <span className="text-[10px] font-bold text-text-light uppercase tracking-widest">Discounted Sub-total</span>
+                        <span className="text-sm font-black text-text-main tabular-nums">R{totals.subtotal.toLocaleString()}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-between group">
+                      <span className="text-[10px] font-bold text-text-light uppercase tracking-widest">Base Sub-total</span>
+                      <span className="text-sm font-black text-text-main tabular-nums">R{totals.subtotal.toLocaleString()}</span>
+                    </div>
+                  )}
                   {formData.isExpress && (
                     <div 
                       className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl"

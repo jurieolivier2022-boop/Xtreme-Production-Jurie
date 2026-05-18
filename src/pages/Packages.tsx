@@ -192,6 +192,8 @@ function PackageModal({ pkg, onClose }: { pkg: Package | null, onClose: () => vo
     description: pkg?.description || '',
     featured: pkg?.featured || false,
     category: pkg?.category || '',
+    leadTime: pkg?.leadTime || '',
+    targetAudience: pkg?.targetAudience || '',
     packagePrice: pkg?.packagePrice || 0,
     status: pkg?.status || 'Active',
     items: pkg?.items || [{ label: '', price: 0 }]
@@ -279,16 +281,38 @@ function PackageModal({ pkg, onClose }: { pkg: Package | null, onClose: () => vo
               />
             </div>
 
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Category</label>
-              <input 
-                type="text"
-                required
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500"
-                placeholder="Stationery, Signage, etc"
-              />
+            <div className="grid grid-cols-3 gap-6">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Category</label>
+                <input 
+                  type="text"
+                  required
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500"
+                  placeholder="Stationery, Signage, etc"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Lead Time</label>
+                <input 
+                  type="text"
+                  value={formData.leadTime}
+                  onChange={(e) => setFormData({ ...formData, leadTime: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500"
+                  placeholder="e.g. 7-10 Days"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Target Audience</label>
+                <input 
+                  type="text"
+                  value={formData.targetAudience}
+                  onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500"
+                  placeholder="e.g. Startups"
+                />
+              </div>
             </div>
 
             <div className="flex items-end gap-6 pb-2">
