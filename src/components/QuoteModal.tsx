@@ -442,8 +442,11 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
       } else {
         const year = new Date().getFullYear();
         const sequence = await getNextSequence(`quotes_${year}`);
+        if (!sequence) throw new Error("Failed to generate quote number sequence");
+        
         finalData.quoteNumber = `Quote-${year}-${(sequence || 1).toString().padStart(3, '0')}`;
-        await createDocument('quotes', finalData as any);
+        const newDocId = await createDocument('quotes', finalData as any);
+        if (!newDocId) throw new Error("Failed to create quote document in Firestore");
       }
       setShowSuccess(true);
       toast.success('Quote saved successfully.');

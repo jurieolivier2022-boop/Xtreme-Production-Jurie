@@ -140,7 +140,7 @@ export const generateJobCardPDF = (job: Job, client: Client | undefined, company
   let finalY = (doc as any).lastAutoTable.finalY + 10;
 
   // Totals Summary for Job Card
-  if (finalY > 230) { doc.addPage(); finalY = 20; }
+  if (finalY > 260) { doc.addPage(); finalY = 20; }
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
   
@@ -155,7 +155,7 @@ export const generateJobCardPDF = (job: Job, client: Client | undefined, company
 
   // Production Details
   if (job.ncrDetails && Object.values(job.ncrDetails).some(v => !!v)) {
-    if (finalY > 220) { doc.addPage(); finalY = 20; }
+    if (finalY > 260) { doc.addPage(); finalY = 20; }
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('NCR PRODUCTION SPECIFICATIONS', 15, finalY);
@@ -184,7 +184,7 @@ export const generateJobCardPDF = (job: Job, client: Client | undefined, company
   }
 
   // Artwork Status
-  if (finalY > 240) { doc.addPage(); finalY = 20; }
+  if (finalY > 260) { doc.addPage(); finalY = 20; }
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text('ARTWORK & PRODUCTION STATUS', 15, finalY);
@@ -198,7 +198,7 @@ export const generateJobCardPDF = (job: Job, client: Client | undefined, company
 
   // Internal Notes
   if (job.notes) {
-    if (finalY > 240) { doc.addPage(); finalY = 20; }
+    if (finalY > 260) { doc.addPage(); finalY = 20; }
     doc.setFont('helvetica', 'bold');
     doc.text('PRODUCTION NOTES:', 15, finalY);
     finalY += 5;
@@ -213,6 +213,7 @@ export const generateJobCardPDF = (job: Job, client: Client | undefined, company
 };
 
 export const generateQuotePDF = (quote: Quote, client: Client | undefined, company: CompanySettings | undefined) => {
+  console.log('Generating PDF for quote:', quote?.quoteNumber, 'Items:', quote?.items?.length);
   const doc = new jsPDF();
 
   addHeader(doc, company, 'Quote', quote.quoteNumber);
@@ -271,7 +272,7 @@ export const generateQuotePDF = (quote: Quote, client: Client | undefined, compa
   let finalY = (doc as any).lastAutoTable.finalY + 10;
 
   // Totals Summary
-  if (finalY > 230) { doc.addPage(); finalY = 20; }
+  if (finalY > 260) { doc.addPage(); finalY = 20; }
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
   
@@ -296,7 +297,7 @@ export const generateQuotePDF = (quote: Quote, client: Client | undefined, compa
   finalY += 25;
 
   // VAT Summary
-  if (finalY > 230) { doc.addPage(); finalY = 20; }
+  if (finalY > 260) { doc.addPage(); finalY = 20; }
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text('VAT Summary', 15, finalY);
@@ -318,7 +319,7 @@ export const generateQuotePDF = (quote: Quote, client: Client | undefined, compa
   finalY = (doc as any).lastAutoTable.finalY + 15;
 
   // Notes & Banking
-  if (finalY > 240) { doc.addPage(); finalY = 20; }
+  if (finalY > 260) { doc.addPage(); finalY = 20; }
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text('Notes', 15, finalY);
@@ -345,17 +346,18 @@ export const generateQuotePDF = (quote: Quote, client: Client | undefined, compa
     doc.text(`VAT: ${company.vatNumber}`, 15, finalY);
   }
 
-  // Terms & Conditions Page
-  doc.addPage();
+  // Terms & Conditions
+  finalY += 10;
+  if (finalY > 260) { doc.addPage(); finalY = 20; }
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('Terms & Conditions', 15, 20);
+  doc.text('Terms & Conditions', 15, finalY);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   const termsText = [
     'Lead Time on standard orders is 3-5 business days. Litho and Large signs 10-15 business days. All COD orders require a mandatory 70% deposit of total order value. Deposit is payable on acceptance of quote and the outstanding balance prior to collection. Orders requiring overtime (weekends and public holidays) will be charged accordingly.'
   ];
-  doc.text(termsText, 15, 30, { maxWidth: 180 });
+  doc.text(termsText, 15, finalY + 10, { maxWidth: 180 });
 
   addFooter(doc);
   return doc;
