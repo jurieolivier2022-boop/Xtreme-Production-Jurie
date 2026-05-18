@@ -21,11 +21,13 @@ async function startServer() {
 
   // Zoho Sync Routes
   app.get("/api/zoho/connect", (req, res) => {
+      console.log("Connect to Zoho requested");
       const authUrl = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoBooks.contacts.ALL&client_id=${process.env.ZOHO_CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${process.env.ZOHO_REDIRECT_URI}`;
       res.redirect(authUrl);
   });
   
   app.get("/api/zoho/callback", async (req, res) => {
+      console.log("Zoho Callback received", req.query);
       const { code } = req.query;
       try {
           const tokenResponse = await axios.post(`https://accounts.zoho.eu/oauth/v2/token`, null, {
@@ -48,14 +50,12 @@ async function startServer() {
   });
 
   app.post("/api/zoho/webhook", async (req, res) => {
-      // Handle Zoho webhook: verify trigger, then update client in database
-      const event = req.body;
-      console.log("Zoho Webhook Received:", event);
-      // Logic: If contact.updated, fetch updated contact from Zoho, then find/update in Firestore
+      console.log("Zoho Webhook Received:", req.body);
       res.status(200).send("ok");
   });
   
   app.post("/api/zoho/sync", async (req, res) => {
+      console.log("Sync requested", req.body);
       const { client } = req.body;
       try {
           const docRef = db.collection('settings').doc('zoho');
