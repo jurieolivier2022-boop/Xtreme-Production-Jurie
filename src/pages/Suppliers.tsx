@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Phone, Mail, Clock, Edit2, Search, Plus, Trash2, AlertTriangle, Upload, Loader2 } from 'lucide-react';
+import { Phone, Mail, Clock, Edit2, Search, Plus, Trash2, AlertTriangle, Upload, Loader2, Download } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useCollection, createDocument, updateDocument, deleteDocument } from '../lib/firestoreService';
 import { Supplier } from '../types';
@@ -70,6 +70,28 @@ export default function Suppliers() {
     });
   };
 
+  const handleExportCSV = () => {
+    console.log('Action: Export Suppliers CSV');
+    const csv = Papa.unparse(suppliers.map(s => ({
+      Name: s.name,
+      Email: s.email,
+      Phone: s.phone,
+      'Contact Person': s.contactPerson,
+      Address: s.address,
+      'Lead Time': s.leadTime,
+      Categories: s.categories.join(', '),
+      Status: s.status
+    })));
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `suppliers_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Suppliers exported successfully.');
+  };
+
   const filteredSuppliers = suppliers.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())
@@ -138,6 +160,13 @@ export default function Suppliers() {
           >
             {isImporting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
             {isImporting ? 'Importing...' : 'Import CSV'}
+          </button>
+          <button 
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-6 py-3 bg-white border border-border rounded-xl text-sm font-bold text-text-muted hover:border-brand hover:text-brand transition-all shadow-sm"
+          >
+            <Download size={18} />
+            Export CSV
           </button>
           <button 
             onClick={() => {

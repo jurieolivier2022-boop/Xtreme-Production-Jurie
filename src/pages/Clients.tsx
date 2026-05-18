@@ -69,6 +69,7 @@ export default function Clients() {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: (h) => h.trim(),
       complete: async (results) => {
         try {
           const newClients = results.data as any[];

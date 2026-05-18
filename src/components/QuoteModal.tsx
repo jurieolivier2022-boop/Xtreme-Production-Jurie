@@ -321,7 +321,8 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
     setIsProcessing(true);
     try {
       const client = clients.find(c => c.id === formData.clientId);
-      const doc = generateQuotePDF(formData as Quote, client, company);
+      const finalQuote = { ...formData, items, ...totals } as Quote;
+      const doc = generateQuotePDF(finalQuote, client, company);
       doc.save(`Quote_${formData.quoteNumber}.pdf`);
     } finally {
       setIsProcessing(false);
@@ -333,7 +334,8 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
     setIsProcessing(true);
     try {
       const client = clients.find(c => c.id === formData.clientId);
-      const doc = generateQuotePDF(formData as Quote, client, company);
+      const finalQuote = { ...formData, items, ...totals } as Quote;
+      const doc = generateQuotePDF(finalQuote, client, company);
       const blobURL = doc.output('bloburl');
       const win = window.open(blobURL, '_blank');
       if (!win) {
@@ -350,7 +352,8 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
     if (client) {
       setIsProcessing(true);
       try {
-        await shareViaEmail('quote', formData as Quote, client, company);
+        const finalQuote = { ...formData, items, ...totals } as Quote;
+        await shareViaEmail('quote', finalQuote, client, company);
       } finally {
         setIsProcessing(false);
       }
@@ -365,7 +368,8 @@ export default function QuoteModal({ isOpen, onClose, quote, prefilledItem, init
     if (client) {
       setIsProcessing(true);
       try {
-        await shareViaWhatsApp('quote', formData as Quote, client, company);
+        const finalQuote = { ...formData, items, ...totals } as Quote;
+        await shareViaWhatsApp('quote', finalQuote, client, company);
       } finally {
         setIsProcessing(false);
       }
