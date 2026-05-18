@@ -73,24 +73,32 @@ export default function Clients() {
         try {
           const newClients = results.data as any[];
           let importedCount = 0;
+          
+          console.log('New clients data:', newClients);
 
           for (const row of newClients) {
-            // Map common header variations
-            const name = row.Name || row.name || row['Full Name'] || row.FullName;
-            const email = row.Email || row.email || row['Email Address'];
-            const phone = row.Phone || row.phone || row['Phone Number'] || row.Mobile;
-            
-            if (name && email) {
-              await createDocument('clients', {
-                name,
-                email,
-                phone: phone || '',
-                companyName: row['Company Name'] || row.Company || row.company || '',
-                address: row.Address || row.address || '',
-                vatNumber: row['VAT Number'] || row.VAT || row.vat || '',
-                createdAt: Date.now()
-              });
-              importedCount++;
+            try {
+              // Map common header variations
+              const name = row.Name || row.name || row['Full Name'] || row.FullName;
+              const email = row.Email || row.email || row['Email Address'];
+              const phone = row.Phone || row.phone || row['Phone Number'] || row.Mobile;
+              
+              if (name && email) {
+                await createDocument('clients', {
+                  name,
+                  email,
+                  phone: phone || '',
+                  companyName: row['Company Name'] || row.Company || row.company || '',
+                  address: row.Address || row.address || '',
+                  vatNumber: row['VAT Number'] || row.VAT || row.vat || '',
+                  createdAt: Date.now()
+                });
+                importedCount++;
+              } else {
+                console.warn('Skipping row due to missing name or email:', row);
+              }
+            } catch (err) {
+              console.error('Error importing row:', row, err);
             }
           }
           toast.success(`Successfully imported ${importedCount} clients.`);
