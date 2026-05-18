@@ -42,7 +42,7 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const connectToZoho = () => {
-    window.location.href = '/api/zoho/auth';
+    window.location.href = '/api/zoho/connect';
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

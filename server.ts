@@ -20,7 +20,7 @@ async function startServer() {
   });
 
   // Zoho Sync Routes
-  app.get("/api/zoho/auth", (req, res) => {
+  app.get("/api/zoho/connect", (req, res) => {
       const authUrl = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoBooks.contacts.ALL&client_id=${process.env.ZOHO_CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${process.env.ZOHO_REDIRECT_URI}`;
       res.redirect(authUrl);
   });
@@ -45,6 +45,14 @@ async function startServer() {
           console.error('OAuth Callback Error:', error);
           res.status(500).send("OAuth failed");
       }
+  });
+
+  app.post("/api/zoho/webhook", async (req, res) => {
+      // Handle Zoho webhook: verify trigger, then update client in database
+      const event = req.body;
+      console.log("Zoho Webhook Received:", event);
+      // Logic: If contact.updated, fetch updated contact from Zoho, then find/update in Firestore
+      res.status(200).send("ok");
   });
   
   app.post("/api/zoho/sync", async (req, res) => {
