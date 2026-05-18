@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/api/zoho/connect", "destination": "/api/zoho/connect.ts" },
+    { "source": "/api/zoho/callback", "destination": "/api/zoho/callback.ts" },
+    { "source": "/api/zoho/webhook", "destination": "/api/zoho/webhook.ts" },
+    { "source": "/api/zoho/sync", "destination": "/api/zoho/sync.ts" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
